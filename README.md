@@ -1,0 +1,2 @@
+# SetSpeedShortcuts
+ADOFAI Mod

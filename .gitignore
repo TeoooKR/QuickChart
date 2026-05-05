@@ -1,0 +1,6 @@
+.idea
+*.dll
+bin/
+obj/
+*.user
+result/
