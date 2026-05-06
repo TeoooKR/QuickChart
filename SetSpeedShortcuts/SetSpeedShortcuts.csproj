@@ -8,8 +8,8 @@
         <ProjectGuid>{BCDB4534-6EC0-40E2-91B1-4A0851BD0D64}</ProjectGuid>
         <OutputType>Library</OutputType>
         <AppDesignerFolder>Properties</AppDesignerFolder>
-        <RootNamespace>ADOFAIMod2</RootNamespace>
-        <AssemblyName>ADOFAIMod2</AssemblyName>
+        <RootNamespace>SetSpeedShortcuts</RootNamespace>
+        <AssemblyName>SetSpeedShortcuts</AssemblyName>
         <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
