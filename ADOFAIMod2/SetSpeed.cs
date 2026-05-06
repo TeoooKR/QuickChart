@@ -9,7 +9,6 @@ public static class AddEventPatch {
             lastEvent.data["bpmMultiplier"] = Main.MULTIPLIER;
             lastEvent.data["speedType"] = 1; // idk why this works lol
             Main.IS_ARROW = false;
-
         }
     }
 }
