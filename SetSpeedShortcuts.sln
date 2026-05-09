@@ -1,6 +1,6 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ADOFAIMod2", "ADOFAIMod2\ADOFAIMod2.csproj", "{BCDB4534-6EC0-40E2-91B1-4A0851BD0D64}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SetSpeedShortcuts", "SetSpeedShortcuts\SetSpeedShortcuts.csproj", "{BCDB4534-6EC0-40E2-91B1-4A0851BD0D64}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
