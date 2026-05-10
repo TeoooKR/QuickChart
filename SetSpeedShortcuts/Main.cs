@@ -9,6 +9,7 @@ public static class Main
 {
     public static UnityModManager.ModEntry.ModLogger Logger;
     public static Harmony Harmony;
+    public static Settings Settings;
     public static bool IsEnabled;
 
     static float _keyHoldTimer;
@@ -19,14 +20,54 @@ public static class Main
         modEntry.Logger.Log("Setup!");
         Logger = modEntry.Logger;
     
-        modEntry.OnUpdate = OnUpdate; 
         modEntry.OnToggle = OnToggle;
+        modEntry.OnGUI = OnGUI;
+        modEntry.OnSaveGUI = OnSaveGUI;
+        Settings = new Settings();
+        Settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
+        modEntry.OnUpdate = OnUpdate; 
+    }
+    private static bool OnToggle(UnityModManager.ModEntry modEntry, bool value) {
+        IsEnabled = value;
+        if (value) {
+            Harmony = new Harmony(modEntry.Info.Id);
+            Harmony.PatchAll(Assembly.GetExecutingAssembly());
+        }
+        else { 
+            Harmony.UnpatchAll(modEntry.Info.Id);
+        }
+        return true;
     }
     static public float Multiplier = 1;
     static public float BeatsPerMinute;
     static public bool IsArrow;
     static public bool IsTypeMultiplier;
+    public static string bpmChangeStrSetting = "1";
+    public static float bpmChangeValueSetting = 1f;
+    private static void OnGUI(UnityModManager.ModEntry modEntry) {
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("\bAlt+Shift+↑/↓ BPM 변화량");
+        GUILayout.Space(8);
+        string input = GUILayout.TextField(bpmChangeStrSetting, GUILayout.Width(32));
+        GUILayout.FlexibleSpace();
+        if (input != bpmChangeStrSetting) {
+            if (float.TryParse(input, out float result)) {
+                if (result < 0) result = 0;
+                bpmChangeValueSetting = result;
+                bpmChangeStrSetting = input;
+            }
+            else if (string.IsNullOrEmpty(input)) {
+                bpmChangeStrSetting = "";
+                bpmChangeValueSetting = 0;
+            }
+        }
+        GUILayout.EndHorizontal();
 
+    }
+    private static void OnSaveGUI(UnityModManager.ModEntry modEntry)
+    {
+        Settings.Save(modEntry);
+    }
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
         if (!IsEnabled) return;
 
@@ -42,7 +83,7 @@ public static class Main
             bool up = Input.GetKey(KeyCode.UpArrow);
             bool down = Input.GetKey(KeyCode.DownArrow);
             if (up || down) {
-                float delta = up ? 1 : -1;
+                float delta = up ? bpmChangeValueSetting : -bpmChangeValueSetting;
                 if (_keyHoldTimer == 0f) {
                     HandleSpeedOne(delta);
                     _keyHoldTimer += deltaTime;
@@ -150,17 +191,5 @@ public static class Main
             IsArrow = true;
             scnEditor.instance.AddEventAtSelected(LevelEventType.SetSpeed);
         }
-    }
-    
-    private static bool OnToggle(UnityModManager.ModEntry modEntry, bool value) {
-        IsEnabled = value;
-        if (value) {
-            Harmony = new Harmony(modEntry.Info.Id);
-            Harmony.PatchAll(Assembly.GetExecutingAssembly());
-        }
-        else { 
-            Harmony.UnpatchAll(modEntry.Info.Id);
-        }
-        return true;
     }
 }
