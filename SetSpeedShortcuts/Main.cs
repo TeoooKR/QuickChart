@@ -76,49 +76,95 @@ public static class Main
         if(!IsEnabled) return;
 
 
-        if(Input.GetKeyDown(KeyCode.F4)) {
-            HandlePause();
-            AddMoveTrackToNextTile();
+        if (Input.GetKeyDown(KeyCode.F4)) {
+        }
+        if (Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.LeftAlt) && Input.GetKeyDown(KeyCode.UpArrow)) {
+            HandlePause(1);
+        } else if (Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.LeftAlt) && Input.GetKeyDown(KeyCode.DownArrow)) {
+            HandlePause(-1);
         }
     }
-    private static void HandlePause() {
-        var instance = scnEditor.instance;
+    private static void HandlePause(int delta) {
+        scnEditor instance = scnEditor.instance;
         if (!instance.SelectionIsSingle()) return;
-    
-        var selectedEvents = instance.GetSelectedFloorEvents(LevelEventType.Pause);
+        
+        int initialUndoCount = instance.undoStates.Count;
+        instance.SaveState(); 
+        
+        List<LevelEvent> selectedEvents = instance.GetSelectedFloorEvents(LevelEventType.Pause);
+        int id = instance.selectedFloors[0].seqID;
+
+        bool shouldShowPanel;
 
         if (selectedEvents == null || selectedEvents.Count == 0) {
-            Logger.Log("생성");
-            var addEventMethod = typeof(scnEditor).GetMethod("AddEvent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            addEventMethod?.Invoke(instance, new object[] { instance.selectedFloors[0].seqID, LevelEventType.Pause });
-            instance.ApplyEventsToFloors();
+            if (delta < 0) {
+                return;
+            }
+            MethodInfo addEventMethod = typeof(scnEditor).GetMethod("AddEvent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            addEventMethod?.Invoke(instance, new object[] { id, LevelEventType.Pause });
+            
+            List<LevelEvent> nextTileEvents = instance.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+            if (nextTileEvents == null || nextTileEvents.Count == 0) {
+                AddMoveTrackToNextTile();
+            }
+            
+            shouldShowPanel = true;
         } else {
             LevelEvent selectedEvent = selectedEvents[0];
             var data = selectedEvent.GetData();
-            var countdownTicks = data["countdownTicks"];
-            countdownTicks = 1;
+            float result = (float)data["duration"] + delta;
 
+            if (result > 0) {
+                data["duration"] = result;
+                shouldShowPanel = true;
+            } else {
+                instance.RemoveEvents(new List<LevelEvent> { selectedEvent });
+                List<LevelEvent> nextTileEvents = instance.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                if (nextTileEvents.Count > 0) {
+                    instance.RemoveEvents(new List<LevelEvent> { nextTileEvents[0] }); 
+                }
+                shouldShowPanel = false;
+            }
 
+            if (3 <= result && result < 4 && 0 < delta) {
+                data["countdownTicks"] = 4;
+            } else if (2 <= result && result < 3 && delta < 0) {
+                data["countdownTicks"] = 0;
+            } 
+        }
+
+        instance.ApplyEventsToFloors();
+        instance.levelEventsPanel.ShowTabsForFloor(id);
+        
+        if (shouldShowPanel) {
+            instance.levelEventsPanel.ShowPanel(LevelEventType.Pause);
+        }
+        
+        while (instance.undoStates.Count > initialUndoCount + 1) {
+            instance.undoStates.RemoveAt(instance.undoStates.Count - 1);
         }
     }
     private static void AddMoveTrackToNextTile() {
-        var editor = scnEditor.instance;
-        if (editor.selectedFloors.Count == 0) return;
+        var instance = scnEditor.instance;
+        
+        int id = instance.selectedFloors[0].seqID;
+        if (!instance.SelectionIsSingle() || id == instance.levelData.angleData.Count) return;
+        
+        instance.SaveState(); 
 
-        int selectedTileID = editor.selectedFloors[0].seqID;
-        float angle = editor.levelData.angleData[selectedTileID];
+        float angle = instance.levelData.angleData[id];
         float radian = angle * Mathf.Deg2Rad;
         float x = Mathf.Cos(radian);
         float y = Mathf.Sin(radian);
 
         var addEventMethod = typeof(scnEditor).GetMethod("AddEvent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         
-        addEventMethod.Invoke(scnEditor.instance, new object[] { scnEditor.instance.selectedFloors[0].seqID+1, LevelEventType.PositionTrack });
-        LevelEvent lastEvent = scnEditor.instance.events[scnEditor.instance.events.Count - 1];
+        addEventMethod.Invoke(instance, new object[] { id + 1, LevelEventType.PositionTrack });
+        LevelEvent lastEvent = instance.events[instance.events.Count - 1];
 
         lastEvent.GetData()["positionOffset"] = new Vector2(x, y);
         lastEvent.disabled["positionOffset"] = false;
-        scnEditor.instance.ApplyEventsToFloors();
+        instance.ApplyEventsToFloors();
     } 
     //     if (Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.UpArrow)) {
     //         HandleSpeedMultiply(2.0f);
