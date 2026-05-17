@@ -79,6 +79,10 @@ public static class Main
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
         if (!_isEnabled) return;
 
+        if (CheckShortcut(KeyCode.F4)) {
+            InsertPositionTrack(scnEditor.editor.selectedFloors[0].seqID);
+        }
+        
         if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
         if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
 
@@ -139,16 +143,13 @@ public static class Main
         editor.SaveState(); 
         int id = editor.selectedFloors[0].seqID;
         var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
-        bool shouldShow;
+        bool shouldShowPanel;
 
         if (selectedEvent == null) {
             if (delta < 0) return;
         
             AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
-            shouldShow = true;
-        
-            if (editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack).Count == 0)
-                AddMoveTrackToNextTile();
+            shouldShowPanel = true;
         } 
         else {
             var data = selectedEvent.GetData();
@@ -156,7 +157,7 @@ public static class Main
 
             if (result > 0) {
                 data["duration"] = result;
-                shouldShow = true;
+                shouldShowPanel = true;
             
                 if (result >= 3 && result < 4 && delta > 0) data["countdownTicks"] = 4;
                 else if (result >= 2 && result < 3 && delta < 0) data["countdownTicks"] = 0;
@@ -165,41 +166,41 @@ public static class Main
                 editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
                 var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
                 if (nextTrack.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrack[0] });
-                shouldShow = false;
+                shouldShowPanel = false;
             }
         }
 
         editor.ApplyEventsToFloors();
         editor.levelEventsPanel.ShowTabsForFloor(id);
-        if (shouldShow) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
+        if (shouldShowPanel) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
 
         RemoveTrashUndos();
     }
-    private static void AddMoveTrackToNextTile() {
+    public static void InsertPositionTrack(int id) {
         var editor = scnEditor.instance;
         if (!editor.SelectionIsSingle()) return;
+    
+        Logger.Log(id.ToString());
+        if (id - 1 >= editor.levelData.angleData.Count) return; // return if id is more than last tile
         
-        var selectedFloor = editor.selectedFloors[0];
-        int id = selectedFloor.seqID;
-        if (id >= editor.levelData.angleData.Count) return;
-
-        var relativeAngle = GetFloorRelativeAngle(id);
+        var relativeAngle = GetFloorRelativeAngle(id - 1);
         if (Mathf.Approximately((float)relativeAngle, 360f)) return;
+
+        if (editor.GetFloorEvents(id, LevelEventType.PositionTrack).Count > 0) return; // if there is position track already
         
         editor.SaveState(); 
-        float absoluteAngle = editor.levelData.angleData[id];
+        float absoluteAngle = editor.levelData.angleData[id - 1];
         float radian = absoluteAngle * Mathf.Deg2Rad;
         Vector2 offset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
         
-        AddEventMethod.Invoke(editor, new object[] { id + 1, LevelEventType.PositionTrack });
-        var lastEvent = editor.events[editor.events.Count - 1];
+        AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.PositionTrack });
         
+        var lastEvent = editor.events[editor.events.Count - 1];
         var data = lastEvent.GetData();
         data["positionOffset"] = offset;
         lastEvent.disabled["positionOffset"] = false;
 
         editor.ApplyEventsToFloors();
-        
     }
 
     private static double GetFloorRelativeAngle(int floorIndex) {
@@ -221,9 +222,9 @@ public static class Main
     private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
         var editor = scnEditor.instance;
         if (!editor.SelectionIsSingle()) return;
-
         editor.SaveState();
         int id = editor.selectedFloors[0].seqID;
+        
         var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed)?.Find(e => true);
         
         float prevTileSpeed = (id > 0) ? editor.floors[id - 1].speed : 1f;
