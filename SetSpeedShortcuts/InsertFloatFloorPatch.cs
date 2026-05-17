@@ -8,6 +8,11 @@ public static class InsertFloatFloorPatch {
         var editor = scnEditor.editor;
         var selectedFloors = editor.selectedFloors;
         var id = selectedFloors[0].seqID;
+        if (editor.GetFloorEvents(id + 2, LevelEventType.PositionTrack).Count > 0) { // remove position
+            var nextFloor = editor.GetFloorEvents(id + 2, LevelEventType.PositionTrack);
+            editor.RemoveEvent(nextFloor[0]);
+        }
+        editor.ApplyEventsToFloors();
         if (editor.GetFloorEvents(id, LevelEventType.Pause).Count > 0) {
             Main.InsertPositionTrack(id + 1);
         }
@@ -15,7 +20,7 @@ public static class InsertFloatFloorPatch {
 }
 
 [HarmonyPatch(typeof(scnEditor),"AddEvent")]
-public static class AddEventPatch {
+public static class AddEventPatch { 
     public static void Postfix(int floorID, LevelEventType eventType) {
         if (eventType == LevelEventType.Pause) {
             Main.InsertPositionTrack(floorID + 1);

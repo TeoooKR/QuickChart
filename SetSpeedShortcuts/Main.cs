@@ -164,8 +164,9 @@ public static class Main
             } 
             else {
                 editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
+                
                 var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                if (nextTrack.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrack[0] });
+                if (nextTrack.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrack[0] }); // remove position
                 shouldShowPanel = false;
             }
         }
@@ -272,7 +273,7 @@ public static class Main
             float finalSpeed = nowBpmMode ? System.Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * System.Convert.ToSingle(data["bpmMultiplier"]);
 
             if (Mathf.Approximately(finalSpeed, prevBpm)) {
-                editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
+                editor.RemoveEvents(new List<LevelEvent> { selectedEvent }); 
                 shouldShow = false;
             } else {
                 shouldShow = true;
