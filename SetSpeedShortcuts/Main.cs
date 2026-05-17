@@ -1,14 +1,9 @@
-using System;
 using System.Collections.Generic;
 using System.Reflection;
 using ADOFAI;
-using ADOFAI.Editor.Actions;
-using GDMiniJSON;
 using HarmonyLib;
-using Newtonsoft.Json.Linq;
 using UnityModManagerNet;
 using UnityEngine;
-
 public static class Main
 {
     public static UnityModManager.ModEntry.ModLogger Logger;
@@ -27,7 +22,6 @@ public static class Main
         modEntry.OnToggle = OnToggle;
         modEntry.OnGUI = OnGUI;
         modEntry.OnSaveGUI = OnSaveGUI;
-        Settings = new Settings();
         Settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
         modEntry.OnUpdate = OnUpdate; 
     }
@@ -42,7 +36,9 @@ public static class Main
         }
         return true;
     }
-    static public float Multiplier = 1;
+    private static readonly MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent", 
+        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+    
     static public float BeatsPerMinute;
     static public bool IsArrow;
     static public bool IsTypeMultiplier;
@@ -50,7 +46,7 @@ public static class Main
     public static float bpmChangeValueSetting = 1f;
     private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginHorizontal();
-        GUILayout.Label("\bAlt+Shift+↑/↓ BPM 변화량");
+        GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
         GUILayout.Space(8);
         string input = GUILayout.TextField(bpmChangeStrSetting, GUILayout.Width(32));
         GUILayout.FlexibleSpace();
@@ -60,6 +56,7 @@ public static class Main
                 bpmChangeValueSetting = result;
                 bpmChangeStrSetting = input;
             }
+                
             else if (string.IsNullOrEmpty(input)) {
                 bpmChangeStrSetting = "";
                 bpmChangeValueSetting = 0;
@@ -73,216 +70,197 @@ public static class Main
         Settings.Save(modEntry);
     }
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
-        if(!IsEnabled) return;
+        if (!IsEnabled) return;
 
+        if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
+        if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
 
-        if (Input.GetKeyDown(KeyCode.F4)) {
-        }
-        if (Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.LeftAlt) && Input.GetKeyDown(KeyCode.UpArrow)) {
-            HandlePause(1);
-        } else if (Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.LeftAlt) && Input.GetKeyDown(KeyCode.DownArrow)) {
-            HandlePause(-1);
+        if (CheckShortcut(KeyCode.UpArrow, alt: true)) HandleSetSpeed(2.0f, true);
+        if (CheckShortcut(KeyCode.DownArrow, alt: true)) HandleSetSpeed(0.5f, true);
+
+        bool up = CheckShortcut(KeyCode.UpArrow, alt: true, shift: true, useKeyDown: false);
+        bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
+
+        if (up || down) {
+            float delta = up ? bpmChangeValueSetting : -bpmChangeValueSetting;
+        
+            if (_keyHoldTimer == 0f) {
+                HandleSetSpeed(delta, false);
+                _keyHoldTimer += deltaTime;
+            } else {
+                _keyHoldTimer += deltaTime;
+                if (_keyHoldTimer > 0.4f) {
+                    _repeatTimer += deltaTime;
+                    if (_repeatTimer > 0.05f) {
+                        HandleSetSpeed(delta, false);
+                        _repeatTimer = 0f;
+                    }
+                }
+            }
+        } else {
+            _keyHoldTimer = 0f;
+            _repeatTimer = 0f;
         }
     }
+    
+    private static bool CheckShortcut(KeyCode key, bool ctrl = false, bool alt = false, bool shift = false, bool useKeyDown = true) {
+        bool keyCheck = useKeyDown ? Input.GetKeyDown(key) : Input.GetKey(key);
+        if (!keyCheck) return false;
+
+        bool isCtrlPressed = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        bool isAltPressed = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+        bool isShiftPressed = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+
+        return isCtrlPressed == ctrl && isAltPressed == alt && isShiftPressed == shift;
+    }
+
+    private static void RemoveTrashUndos() {
+        var editor = scnEditor.instance;
+
+        if (editor.undoStates.Count >= 2) {
+            editor.undoStates.RemoveRange(editor.undoStates.Count - 2, 2);
+        }
+        else if (editor.undoStates.Count > 0) {
+            editor.undoStates.RemoveAt(editor.undoStates.Count - 1);
+        }
+    }
+    
     private static void HandlePause(int delta) {
-        scnEditor instance = scnEditor.instance;
-        if (!instance.SelectionIsSingle()) return;
-        
-        int initialUndoCount = instance.undoStates.Count;
-        instance.SaveState(); 
-        
-        List<LevelEvent> selectedEvents = instance.GetSelectedFloorEvents(LevelEventType.Pause);
-        int id = instance.selectedFloors[0].seqID;
+        var editor = scnEditor.instance;
+        if (!editor.SelectionIsSingle()) return;
+    
+        editor.SaveState(); 
+        int id = editor.selectedFloors[0].seqID;
+        var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
+        bool shouldShow;
 
-        bool shouldShowPanel;
-
-        if (selectedEvents == null || selectedEvents.Count == 0) {
-            if (delta < 0) {
-                return;
-            }
-            MethodInfo addEventMethod = typeof(scnEditor).GetMethod("AddEvent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-            addEventMethod?.Invoke(instance, new object[] { id, LevelEventType.Pause });
-            
-            List<LevelEvent> nextTileEvents = instance.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-            if (nextTileEvents == null || nextTileEvents.Count == 0) {
+        if (selectedEvent == null) {
+            if (delta < 0) return;
+        
+            AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
+            shouldShow = true;
+        
+            if (editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack).Count == 0)
                 AddMoveTrackToNextTile();
-            }
-            
-            shouldShowPanel = true;
-        } else {
-            LevelEvent selectedEvent = selectedEvents[0];
+        } 
+        else {
             var data = selectedEvent.GetData();
             float result = (float)data["duration"] + delta;
 
             if (result > 0) {
                 data["duration"] = result;
-                shouldShowPanel = true;
-            } else {
-                instance.RemoveEvents(new List<LevelEvent> { selectedEvent });
-                List<LevelEvent> nextTileEvents = instance.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                if (nextTileEvents.Count > 0) {
-                    instance.RemoveEvents(new List<LevelEvent> { nextTileEvents[0] }); 
-                }
-                shouldShowPanel = false;
-            }
-
-            if (3 <= result && result < 4 && 0 < delta) {
-                data["countdownTicks"] = 4;
-            } else if (2 <= result && result < 3 && delta < 0) {
-                data["countdownTicks"] = 0;
+                shouldShow = true;
+            
+                if (result >= 3 && result < 4 && delta > 0) data["countdownTicks"] = 4;
+                else if (result >= 2 && result < 3 && delta < 0) data["countdownTicks"] = 0;
             } 
+            else {
+                editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
+                var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                if (nextTrack.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrack[0] });
+                shouldShow = false;
+            }
         }
 
-        instance.ApplyEventsToFloors();
-        instance.levelEventsPanel.ShowTabsForFloor(id);
-        
-        if (shouldShowPanel) {
-            instance.levelEventsPanel.ShowPanel(LevelEventType.Pause);
-        }
-        
-        while (instance.undoStates.Count > initialUndoCount + 1) {
-            instance.undoStates.RemoveAt(instance.undoStates.Count - 1);
-        }
+        editor.ApplyEventsToFloors();
+        editor.levelEventsPanel.ShowTabsForFloor(id);
+        if (shouldShow) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
+
+        RemoveTrashUndos();
     }
     private static void AddMoveTrackToNextTile() {
-        var instance = scnEditor.instance;
-        
-        int id = instance.selectedFloors[0].seqID;
-        if (!instance.SelectionIsSingle() || id == instance.levelData.angleData.Count) return;
-        
-        instance.SaveState(); 
+        var editor = scnEditor.instance;
+        if (!editor.SelectionIsSingle()) return;
 
-        float angle = instance.levelData.angleData[id];
+        int id = editor.selectedFloors[0].seqID;
+        if (id >= editor.levelData.angleData.Count) return;
+
+        editor.SaveState(); 
+        
+        float angle = editor.levelData.angleData[id];
         float radian = angle * Mathf.Deg2Rad;
-        float x = Mathf.Cos(radian);
-        float y = Mathf.Sin(radian);
-
-        var addEventMethod = typeof(scnEditor).GetMethod("AddEvent", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        Vector2 offset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
         
-        addEventMethod.Invoke(instance, new object[] { id + 1, LevelEventType.PositionTrack });
-        LevelEvent lastEvent = instance.events[instance.events.Count - 1];
-
-        lastEvent.GetData()["positionOffset"] = new Vector2(x, y);
+        AddEventMethod.Invoke(editor, new object[] { id + 1, LevelEventType.PositionTrack });
+        var lastEvent = editor.events[editor.events.Count - 1];
+        
+        var data = lastEvent.GetData();
+        data["positionOffset"] = offset;
         lastEvent.disabled["positionOffset"] = false;
-        instance.ApplyEventsToFloors();
-    } 
-    //     if (Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.UpArrow)) {
-    //         HandleSpeedMultiply(2.0f);
-    //     } else if (Input.GetKey(KeyCode.LeftAlt) && !Input.GetKey(KeyCode.LeftControl) && !Input.GetKey(KeyCode.LeftShift) && Input.GetKeyDown(KeyCode.DownArrow)) {
-    //         HandleSpeedMultiply(0.5f);
-    //     } 
-    //     else if (Input.GetKey(KeyCode.LeftAlt) && Input.GetKey(KeyCode.LeftShift) && !Input.GetKey(KeyCode.LeftControl)) {
-    //         bool up = Input.GetKey(KeyCode.UpArrow);
-    //         bool down = Input.GetKey(KeyCode.DownArrow);
-    //         if (up || down) {
-    //             float delta = up ? bpmChangeValueSetting : -bpmChangeValueSetting;
-    //             if (_keyHoldTimer == 0f) {
-    //                 HandleSpeedOne(delta);
-    //                 _keyHoldTimer += deltaTime;
-    //             } else {
-    //                 _keyHoldTimer += deltaTime;
-    //                 if (_keyHoldTimer > 0.4f) {
-    //                     _repeatTimer += deltaTime;
-    //                     if (_repeatTimer > 0.05f) {
-    //                         HandleSpeedOne(delta);
-    //                         _repeatTimer = 0f;
-    //                     }
-    //                 }
-    //             }
-    //         } else {
-    //             _keyHoldTimer = 0f;
-    //             _repeatTimer = 0f;
-    //         }
-    //     } else {
-    //         _keyHoldTimer = 0f;
-    //         _repeatTimer = 0f;
-    //     }
-    // }
-    //
-    // private static void HandleSpeedMultiply(float ratio) {
-    //     var selectedEvents = scnEditor.instance.GetSelectedFloorEvents(LevelEventType.SetSpeed);
-    //     if (!scnEditor.instance.SelectionIsSingle()) {
-    //         return;
-    //     }
-    //     if (selectedEvents != null && selectedEvents.Count > 0) {
-    //         LevelEvent ev = selectedEvents[0];
-    //         string type = ev.data["speedType"].ToString();
-    //         
-    //         if (type == "Multiplier" || type == "1") {
-    //             float currentMult = System.Convert.ToSingle(ev.data["bpmMultiplier"]);
-    //             if (Mathf.Approximately(currentMult * ratio, 1)) {
-    //                 scnEditor.instance.RemoveEvents(new List<LevelEvent> { ev });
-    //             } else {
-    //                 ev.data["bpmMultiplier"] = currentMult * ratio;
-    //                 scnEditor.instance.levelEventsPanel.UpdatePropertyText(ev, "bpmMultiplier"); //update input    
-    //             }
-    //         } 
-    //         else if (type == "Bpm") {
-    //             float currentBpm = System.Convert.ToSingle(ev.data["beatsPerMinute"]);
-    //             int previousTile = ADOBase.editor.selectedFloors[0].seqID - 1;
-    //             float previousBpm = ADOBase.editor.levelData.bpm;
-    //
-    //             if (previousTile > 0) {
-    //                 previousBpm *= ADOBase.editor.floors[previousTile].speed;
-    //             }
-    //             if (Mathf.Approximately(currentBpm * ratio, previousBpm)) {
-    //                 scnEditor.instance.RemoveEvents(new List<LevelEvent> { ev });
-    //
-    //             } else {
-    //                 ev.data["beatsPerMinute"] = currentBpm * ratio;
-    //                 scnEditor.instance.levelEventsPanel.UpdatePropertyText(ev, "beatsPerMinute"); //update input
-    //             }
-    //         }
-    //         scnEditor.instance.ApplyEventsToFloors(); //update tiles
-    //         scnEditor.instance.levelEventsPanel.ShowPanel(LevelEventType.SetSpeed);
-    //     } else {
-    //         IsTypeMultiplier = true;
-    //         Multiplier = ratio;
-    //         IsArrow = true;
-    //         scnEditor.instance.AddEventAtSelected(LevelEventType.SetSpeed);
-    //     }
-    // }
-    //
-    // private static void HandleSpeedOne(float delta) {
-    //     var selectedEvents = scnEditor.instance.GetSelectedFloorEvents(LevelEventType.SetSpeed);
-    //     
-    //     if (selectedEvents != null && selectedEvents.Count > 0) {
-    //         LevelEvent ev = selectedEvents[0];
-    //         string type = ev.data["speedType"].ToString();
-    //         
-    //         if (type == "Multiplier" || type == "1") {
-    //             return;
-    //         } 
-    //         else if (type == "Bpm") {
-    //             float currentBpm = System.Convert.ToSingle(ev.data["beatsPerMinute"]);
-    //             int previousTile = ADOBase.editor.selectedFloors[0].seqID - 1;
-    //             float previousBpm = ADOBase.editor.levelData.bpm;
-    //
-    //             if (previousTile > 0) {
-    //                 previousBpm *= ADOBase.editor.floors[previousTile].speed;
-    //             }
-    //             if (Mathf.Approximately(currentBpm + delta, previousBpm)) {
-    //                 scnEditor.instance.RemoveEvents(new List<LevelEvent> { ev });
-    //                 
-    //             } else {
-    //                 if (currentBpm + delta > 0) {
-    //                     ev.data["beatsPerMinute"] = currentBpm + delta;
-    //                 } else {
-    //                     ev.data["beatsPerMinute"] = currentBpm;
-    //                 }
-    //                 scnEditor.instance.levelEventsPanel.UpdatePropertyText(ev, "beatsPerMinute"); //update input
-    //             }
-    //
-    //         }
-    //         scnEditor.instance.ApplyEventsToFloors(); //update tiles
-    //     } else {
-    //         IsTypeMultiplier = false;
-    //         float currentBpm = ADOBase.editor.levelData.bpm * ADOBase.editor.selectedFloors[0].speed;
-    //         BeatsPerMinute = currentBpm;
-    //         if (currentBpm + delta > 0) {
-    //             BeatsPerMinute += delta;
-    //         }
-    //         IsArrow = true;
-    //         scnEditor.instance.AddEventAtSelected(LevelEventType.SetSpeed);
-    //     }
+
+        editor.ApplyEventsToFloors();
+        
+    }  
+    private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
+        var editor = scnEditor.instance;
+        if (!editor.SelectionIsSingle()) return;
+
+        editor.SaveState();
+        int id = editor.selectedFloors[0].seqID;
+        var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed)?.Find(e => true);
+        
+        float prevTileSpeed = (id > 0) ? editor.floors[id - 1].speed : 1f;
+        float prevBpm = editor.levelData.bpm * prevTileSpeed;
+        bool shouldShow;
+
+        if (selectedEvent == null) {
+            AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.SetSpeed });
+
+            var lastEvent = editor.events[editor.events.Count - 1];
+            var data = lastEvent.GetData();
+
+            if (calculateByMultiplier) {
+                data["speedType"] = SpeedType.Multiplier;
+                data["bpmMultiplier"] = value;
+            } else {
+                data["beatsPerMinute"] = Mathf.Max(0.1f, prevBpm + value);
+            }
+            shouldShow = true;
+        } else {
+            var data = selectedEvent.GetData();
+            var currentType = data["speedType"]; 
+            bool isBpmMode = currentType.ToString() == "Bpm" || currentType.ToString() == "0";
+
+            if (calculateByMultiplier) {
+                string targetKey = isBpmMode ? "beatsPerMinute" : "bpmMultiplier";
+                float currentVal = System.Convert.ToSingle(data[targetKey]);
+                float nextVal = currentVal * value;
+    
+                if (nextVal > 0f) {
+                    data[targetKey] = nextVal;
+                }
+            } else {
+                float currentBpm = isBpmMode ? System.Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * System.Convert.ToSingle(data["bpmMultiplier"]);
+                float nextBpm = currentBpm + value;
+
+                if (nextBpm > 0f) {
+                    data["speedType"] = SpeedType.Bpm; 
+                    data["beatsPerMinute"] = nextBpm;
+                }
+            }
+
+            bool nowBpmMode = data["speedType"].ToString() == "Bpm" || data["speedType"].ToString() == "0";
+            float finalSpeed = nowBpmMode ? System.Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * System.Convert.ToSingle(data["bpmMultiplier"]);
+
+            if (Mathf.Approximately(finalSpeed, prevBpm)) {
+                editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
+                shouldShow = false;
+            } else {
+                shouldShow = true;
+            }
+            
+        }
+
+        editor.ApplyEventsToFloors();
+        editor.levelEventsPanel.ShowTabsForFloor(id);
+        if (shouldShow) {
+            var targetEvent = selectedEvent ?? editor.events[editor.events.Count - 1];
+            editor.levelEventsPanel.ShowPanel(LevelEventType.SetSpeed);
+            editor.levelEventsPanel.UpdatePropertyText(targetEvent, "beatsPerMinute");
+            editor.levelEventsPanel.UpdatePropertyText(targetEvent, "bpmMultiplier");
+            editor.levelEventsPanel.UpdatePropertyText(targetEvent, "speedType");
+        }
+        
+        RemoveTrashUndos();
+    }
 }
