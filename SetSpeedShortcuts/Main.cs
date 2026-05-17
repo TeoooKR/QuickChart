@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using ADOFAI;
@@ -173,11 +174,13 @@ public static class Main
         var selectedFloor = editor.selectedFloors[0];
         int id = selectedFloor.seqID;
         if (id >= editor.levelData.angleData.Count) return;
-                    
-        editor.SaveState(); 
+
+        var relativeAngle = GetFloorRelativeAngle(id);
+        if (Mathf.Approximately((float)relativeAngle, 360f)) return;
         
-        float angle = editor.levelData.angleData[id];
-        float radian = angle * Mathf.Deg2Rad;
+        editor.SaveState(); 
+        float absoluteAngle = editor.levelData.angleData[id];
+        float radian = absoluteAngle * Mathf.Deg2Rad;
         Vector2 offset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
         
         AddEventMethod.Invoke(editor, new object[] { id + 1, LevelEventType.PositionTrack });
@@ -190,6 +193,23 @@ public static class Main
         editor.ApplyEventsToFloors();
         
     }  
+    
+    public static double GetFloorRelativeAngle(int floorIndex) {
+        var editor = ADOBase.editor;
+    
+        if (editor == null || floorIndex < 0 || floorIndex >= editor.floors.Count - 1)
+        {
+            return 0;
+        }
+
+        ADOBase.lm.CalculateFloorAngleLengths();
+
+        var floor = editor.floors[floorIndex];
+    
+        double angle = floor.angleLength * Mathf.Rad2Deg;
+
+        return angle;
+    }
     private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
         var editor = scnEditor.instance;
         if (!editor.SelectionIsSingle()) return;
