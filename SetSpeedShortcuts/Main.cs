@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Reflection;
 using ADOFAI;
@@ -8,68 +7,77 @@ using UnityEngine;
 public static class Main
 {
     public static UnityModManager.ModEntry.ModLogger Logger;
-    private static Harmony Harmony;
-    public static Settings Settings;
-    public static bool IsEnabled;
+    private static Harmony _harmony;
+    private static Settings _settings;
+    private static bool _isEnabled;
 
     static float _keyHoldTimer;
     static float _repeatTimer;
 
-    public static string BpmDeltaStr = "1";
-    public static float BpmDelta = 1f;
+    private static string _bpmDeltaStr = "1";
+    private static float _bpmDelta = 1f;
 
     public static void Setup(UnityModManager.ModEntry modEntry)
     {
-        modEntry.Logger.Log("Setup!");
         Logger = modEntry.Logger;
     
+        _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
+    
+        _bpmDelta = _settings.BpmDelta;
+        _bpmDeltaStr = _bpmDelta.ToString();
+
         modEntry.OnToggle = OnToggle;
         modEntry.OnGUI = OnGUI;
         modEntry.OnSaveGUI = OnSaveGUI;
-        Settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
         modEntry.OnUpdate = OnUpdate; 
     }
+
     private static bool OnToggle(UnityModManager.ModEntry modEntry, bool value) {
-        IsEnabled = value;
+        _isEnabled = value;
         if (value) {
-            Harmony = new Harmony(modEntry.Info.Id);
-            Harmony.PatchAll(Assembly.GetExecutingAssembly());
+            _harmony = new Harmony(modEntry.Info.Id);
+            _harmony.PatchAll(Assembly.GetExecutingAssembly());
         }
         else { 
-            Harmony.UnpatchAll(modEntry.Info.Id);
+            _harmony.UnpatchAll(modEntry.Info.Id);
         }
         return true;
     }
-    private static readonly MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent", 
-        BindingFlags.NonPublic | BindingFlags.Instance);
     
     private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginHorizontal();
         GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
         GUILayout.Space(8);
-        string input = GUILayout.TextField(BpmDeltaStr, GUILayout.Width(32));
-        GUILayout.FlexibleSpace();
-        if (input != BpmDeltaStr) {
+    
+        string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
+    
+        if (input != _bpmDeltaStr) {
+            _bpmDeltaStr = input;
             if (float.TryParse(input, out float result)) {
                 if (result < 0) result = 0;
-                BpmDelta = result;
-                BpmDeltaStr = input;
+                _bpmDelta = result;
+                _settings.BpmDelta = _bpmDelta;
             }
-                
             else if (string.IsNullOrEmpty(input)) {
-                BpmDeltaStr = "";
-                BpmDelta = 0;
+                _bpmDelta = 0;
+                _settings.BpmDelta = 0;
             }
         }
+        GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
-
     }
+
     private static void OnSaveGUI(UnityModManager.ModEntry modEntry)
     {
-        Settings.Save(modEntry);
-    }
+        _settings.Save(modEntry);
+    }   
+    
+    readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent", 
+        BindingFlags.NonPublic | BindingFlags.Instance);
+    
+
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
-        if (!IsEnabled) return;
+        if (!_isEnabled) return;
 
         if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
         if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
@@ -81,7 +89,7 @@ public static class Main
         bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
 
         if (up || down) {
-            float delta = up ? BpmDelta : -BpmDelta;
+            float delta = up ? _bpmDelta : -_bpmDelta;
         
             if (_keyHoldTimer == 0f) {
                 HandleSetSpeed(delta, false);
@@ -192,9 +200,9 @@ public static class Main
 
         editor.ApplyEventsToFloors();
         
-    }  
-    
-    public static double GetFloorRelativeAngle(int floorIndex) {
+    }
+
+    private static double GetFloorRelativeAngle(int floorIndex) {
         var editor = ADOBase.editor;
     
         if (editor == null || floorIndex < 0 || floorIndex >= editor.floors.Count - 1)
