@@ -7,12 +7,15 @@ using UnityEngine;
 public static class Main
 {
     public static UnityModManager.ModEntry.ModLogger Logger;
-    public static Harmony Harmony;
+    private static Harmony Harmony;
     public static Settings Settings;
     public static bool IsEnabled;
 
     static float _keyHoldTimer;
     static float _repeatTimer;
+
+    public static string BpmDeltaStr = "1";
+    public static float BpmDelta = 1f;
 
     public static void Setup(UnityModManager.ModEntry modEntry)
     {
@@ -37,29 +40,24 @@ public static class Main
         return true;
     }
     private static readonly MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent", 
-        System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        BindingFlags.NonPublic | BindingFlags.Instance);
     
-    static public float BeatsPerMinute;
-    static public bool IsArrow;
-    static public bool IsTypeMultiplier;
-    public static string bpmChangeStrSetting = "1";
-    public static float bpmChangeValueSetting = 1f;
     private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginHorizontal();
         GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
         GUILayout.Space(8);
-        string input = GUILayout.TextField(bpmChangeStrSetting, GUILayout.Width(32));
+        string input = GUILayout.TextField(BpmDeltaStr, GUILayout.Width(32));
         GUILayout.FlexibleSpace();
-        if (input != bpmChangeStrSetting) {
+        if (input != BpmDeltaStr) {
             if (float.TryParse(input, out float result)) {
                 if (result < 0) result = 0;
-                bpmChangeValueSetting = result;
-                bpmChangeStrSetting = input;
+                BpmDelta = result;
+                BpmDeltaStr = input;
             }
                 
             else if (string.IsNullOrEmpty(input)) {
-                bpmChangeStrSetting = "";
-                bpmChangeValueSetting = 0;
+                BpmDeltaStr = "";
+                BpmDelta = 0;
             }
         }
         GUILayout.EndHorizontal();
@@ -82,7 +80,7 @@ public static class Main
         bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
 
         if (up || down) {
-            float delta = up ? bpmChangeValueSetting : -bpmChangeValueSetting;
+            float delta = up ? BpmDelta : -BpmDelta;
         
             if (_keyHoldTimer == 0f) {
                 HandleSetSpeed(delta, false);
@@ -171,10 +169,11 @@ public static class Main
     private static void AddMoveTrackToNextTile() {
         var editor = scnEditor.instance;
         if (!editor.SelectionIsSingle()) return;
-
-        int id = editor.selectedFloors[0].seqID;
+        
+        var selectedFloor = editor.selectedFloors[0];
+        int id = selectedFloor.seqID;
         if (id >= editor.levelData.angleData.Count) return;
-
+                    
         editor.SaveState(); 
         
         float angle = editor.levelData.angleData[id];
@@ -231,11 +230,12 @@ public static class Main
                 }
             } else {
                 float currentBpm = isBpmMode ? System.Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * System.Convert.ToSingle(data["bpmMultiplier"]);
-                float nextBpm = currentBpm + value;
+                
+                decimal preciseBpm = (decimal)currentBpm + (decimal)value;
 
-                if (nextBpm > 0f) {
+                if (preciseBpm > 0m) {
                     data["speedType"] = SpeedType.Bpm; 
-                    data["beatsPerMinute"] = nextBpm;
+                    data["beatsPerMinute"] = (float)preciseBpm;
                 }
             }
 

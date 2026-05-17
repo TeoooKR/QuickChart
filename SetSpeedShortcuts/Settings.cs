@@ -20,6 +20,4 @@ public class Settings : UnityModManager.ModSettings
     public override string GetPath(UnityModManager.ModEntry modEntry) {
         return Path.Combine(modEntry.Path, GetType().Name + ".xml");
     }
-
 }
-
