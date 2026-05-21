@@ -15,17 +15,30 @@ public static class Main {
     static float _keyHoldTimer;
     static float _repeatTimer;
 
+    private static string _positionTrackUnitStr = "1";
+    private static float _positionTrackUnit = 1f;
+
+    private static bool _speedShortcutEnabled = true;
     private static string _bpmDeltaStr = "1";
     private static float _bpmDelta = 1f;
-    
+
+    private static bool _pauseShortcutEnabled = true;
+    private static bool _adjustPositionTrackWithPause = true;
 
     public static void Setup(UnityModManager.ModEntry modEntry) {
         Logger = modEntry.Logger;
 
         _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
 
+        _positionTrackUnit = _settings.PositionTrackUnit;
+        _positionTrackUnitStr = _positionTrackUnit.ToString();
+
+        _speedShortcutEnabled = _settings.SpeedShortcutEnabled;
         _bpmDelta = _settings.BpmDelta;
         _bpmDeltaStr = _bpmDelta.ToString();
+        
+        _pauseShortcutEnabled = _settings.PauseShortcutEnabled;
+        _adjustPositionTrackWithPause = _settings.AdjustPositionWithPause;
 
         modEntry.OnToggle = OnToggle;
         modEntry.OnGUI = OnGUI;
@@ -45,12 +58,37 @@ public static class Main {
     }
 
     private static void OnGUI(UnityModManager.ModEntry modEntry) {
+        GUILayout.BeginVertical();
+
         GUILayout.BeginHorizontal();
+        GUILayout.Label("길 위치 단위");
+        GUILayout.Space(8);
+        string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
+        if (unitInput != _positionTrackUnitStr) {
+            _positionTrackUnitStr = unitInput;
+            if (float.TryParse(unitInput, out float unitResult)) {
+                if (unitResult <= 0f) unitResult = 0.01f;
+                _positionTrackUnit = unitResult;
+                _settings.PositionTrackUnit = _positionTrackUnit;
+            }
+        }
+        GUILayout.FlexibleSpace();
+        GUILayout.EndHorizontal();
+
+        GUILayout.Space(10);
+
+        bool prevSpeed = _speedShortcutEnabled;
+        _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, "속도 설정 단축키 활성화 (Alt+↑/↓, Alt+Shift+↑/↓)");
+        if (prevSpeed != _speedShortcutEnabled) {
+            _settings.SpeedShortcutEnabled = _speedShortcutEnabled;
+        }
+
+        GUI.enabled = _speedShortcutEnabled; 
+        GUILayout.BeginHorizontal();
+        GUILayout.Space(32);
         GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
         GUILayout.Space(8);
-
         string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
-
         if (input != _bpmDeltaStr) {
             _bpmDeltaStr = input;
             if (float.TryParse(input, out float result)) {
@@ -64,6 +102,28 @@ public static class Main {
         }
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
+        GUI.enabled = true;
+
+        GUILayout.Space(10);
+
+        bool prevPause = _pauseShortcutEnabled;
+        _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, "비트 일시정지 단축키 활성화 (Ctrl+↑/↓)");
+        if (prevPause != _pauseShortcutEnabled) {
+            _settings.PauseShortcutEnabled = _pauseShortcutEnabled;
+        }
+
+        GUI.enabled = _pauseShortcutEnabled;
+        GUILayout.BeginHorizontal();
+        GUILayout.Space(32);
+        bool prevAdjust = _adjustPositionTrackWithPause;
+        _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수에 따라 길 위치 조정 (Pause 연동)");
+        if (prevAdjust != _adjustPositionTrackWithPause) {
+            _settings.AdjustPositionWithPause = _adjustPositionTrackWithPause;
+        }
+        GUILayout.EndHorizontal();
+        GUI.enabled = true;
+
+        GUILayout.EndVertical();
     }
 
     private static void OnSaveGUI(UnityModManager.ModEntry modEntry) {
@@ -80,30 +140,37 @@ public static class Main {
         if (CheckShortcut(KeyCode.F4)) {
         }
 
-        if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
-        if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
+        if (_pauseShortcutEnabled) {
+            if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
+            if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
+        }
 
-        if (CheckShortcut(KeyCode.UpArrow, alt: true)) HandleSetSpeed(2.0f, true);
-        if (CheckShortcut(KeyCode.DownArrow, alt: true)) HandleSetSpeed(0.5f, true);
+        if (_speedShortcutEnabled) {
+            if (CheckShortcut(KeyCode.UpArrow, alt: true)) HandleSetSpeed(2.0f, true);
+            if (CheckShortcut(KeyCode.DownArrow, alt: true)) HandleSetSpeed(0.5f, true);
 
-        bool up = CheckShortcut(KeyCode.UpArrow, alt: true, shift: true, useKeyDown: false);
-        bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
+            bool up = CheckShortcut(KeyCode.UpArrow, alt: true, shift: true, useKeyDown: false);
+            bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
 
-        if (up || down) {
-            float delta = up ? _bpmDelta : -_bpmDelta;
+            if (up || down) {
+                float delta = up ? _bpmDelta : -_bpmDelta;
 
-            if (_keyHoldTimer == 0f) {
-                HandleSetSpeed(delta, false);
-                _keyHoldTimer += deltaTime;
-            } else {
-                _keyHoldTimer += deltaTime;
-                if (_keyHoldTimer > 0.4f) {
-                    _repeatTimer += deltaTime;
-                    if (_repeatTimer > 0.05f) {
-                        HandleSetSpeed(delta, false);
-                        _repeatTimer = 0f;
+                if (_keyHoldTimer == 0f) {
+                    HandleSetSpeed(delta, false);
+                    _keyHoldTimer += deltaTime;
+                } else {
+                    _keyHoldTimer += deltaTime;
+                    if (_keyHoldTimer > 0.4f) {
+                        _repeatTimer += deltaTime;
+                        if (_repeatTimer > 0.05f) {
+                            HandleSetSpeed(delta, false);
+                            _repeatTimer = 0f;
+                        }
                     }
                 }
+            } else {
+                _keyHoldTimer = 0f;
+                _repeatTimer = 0f;
             }
         } else {
             _keyHoldTimer = 0f;
@@ -148,16 +215,25 @@ public static class Main {
                 id, LevelEventType.Pause
             });
             shouldShowPanel = true;
+
+            InsertPositionTrack(id + 1);
         } else {
             var data = selectedEvent.GetData();
-            float result = (float) data["duration"] + delta;
+            float currentDuration = (float) data["duration"];
+            float result = currentDuration + delta;
 
-            if(result > 0) {
+            if (result > 0) {
                 data["duration"] = result;
                 shouldShowPanel = true;
 
                 if(result >= 3 && result < 4 && delta > 0) data["countdownTicks"] = 4;
                 else if(result >= 2 && result < 3 && delta < 0) data["countdownTicks"] = 0;
+
+                var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                if (nextTrackList.Count > 0) {
+                    editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
+                }
+                InsertPositionTrack(id + 1);
             } else {
                 editor.RemoveEvents(new List<LevelEvent> {
                     selectedEvent
@@ -167,7 +243,7 @@ public static class Main {
                 if(nextTrack.Count > 0)
                     editor.RemoveEvents(new List<LevelEvent> {
                         nextTrack[0]
-                    }); // remove position
+                    });
                 shouldShowPanel = false;
             }
         }
@@ -178,22 +254,33 @@ public static class Main {
 
         RemoveTrashUndos();
     }
+
     public static void InsertPositionTrack(int id) {
         var editor = scnEditor.instance;
-        if (!editor.SelectionIsSingle()) return;
 
         Logger.Log(id.ToString());
-        if (id - 1 >= editor.levelData.angleData.Count) return; // return if id is more than last tile
+        if (id - 1 >= editor.levelData.angleData.Count) return;
 
         var relativeAngle = GetFloorRelativeAngle(id - 1);
         if (Mathf.Approximately((float) relativeAngle, 360f)) return;
 
-        if (editor.GetFloorEvents(id, LevelEventType.PositionTrack).Count > 0) return; // if there is position track already
+        if (editor.GetFloorEvents(id, LevelEventType.PositionTrack).Count > 0) return;
 
         editor.SaveState();
         float absoluteAngle = editor.levelData.angleData[id - 1];
         float radian = absoluteAngle * Mathf.Deg2Rad;
-        Vector2 offset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
+        Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
+
+        float finalMultiplier = 1f;
+        if (_adjustPositionTrackWithPause) {
+            var pauseEvents = editor.GetFloorEvents(id - 1, LevelEventType.Pause);
+            if (pauseEvents != null && pauseEvents.Count > 0) {
+                var pauseData = pauseEvents[0].GetData();
+                if (pauseData.ContainsKey("duration")) {
+                    finalMultiplier = System.Convert.ToSingle(pauseData["duration"]);
+                }
+            }
+        }
 
         AddEventMethod.Invoke(editor, new object[] {
             id, LevelEventType.PositionTrack
@@ -201,7 +288,8 @@ public static class Main {
 
         var lastEvent = editor.events[editor.events.Count - 1];
         var data = lastEvent.GetData();
-        data["positionOffset"] = offset;
+        
+        data["positionOffset"] = baseOffset * (finalMultiplier * _positionTrackUnit);
         lastEvent.disabled["positionOffset"] = false;
 
         editor.ApplyEventsToFloors();
@@ -222,6 +310,7 @@ public static class Main {
 
         return angle;
     }
+    
     private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
         var editor = scnEditor.instance;
         if (!editor.SelectionIsSingle()) return;
