@@ -13,7 +13,7 @@ public static class InsertFloatFloorPatch {
             editor.RemoveEvent(nextFloor[0]);
         }
         editor.ApplyEventsToFloors();
-        if (editor.GetFloorEvents(id, LevelEventType.Pause).Count > 0) {
+        if (Main._autoInsertPositionTrack && editor.GetFloorEvents(id, LevelEventType.Pause).Count > 0) {
             Main.InsertPositionTrack(id + 1);
         }
     }
@@ -22,12 +22,8 @@ public static class InsertFloatFloorPatch {
 [HarmonyPatch(typeof(scnEditor),"AddEvent")]
 public static class AddEventPatch { 
     public static void Postfix(int floorID, LevelEventType eventType) {
-        if (eventType == LevelEventType.Pause) {
+        if (Main._autoInsertPositionTrack && eventType == LevelEventType.Pause) {
             Main.InsertPositionTrack(floorID + 1);
         }
     }
 }
-
-
-
-

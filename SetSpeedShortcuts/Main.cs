@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Reflection;
 using ADOFAI;
 using HarmonyLib;
-using MobileMenu;
 using UnityModManagerNet;
 using UnityEngine;
 
@@ -15,6 +14,7 @@ public static class Main {
     static float _keyHoldTimer;
     static float _repeatTimer;
 
+    public static bool _autoInsertPositionTrack = true;
     private static string _positionTrackUnitStr = "1";
     private static float _positionTrackUnit = 1f;
 
@@ -30,6 +30,7 @@ public static class Main {
 
         _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
 
+        _autoInsertPositionTrack = _settings.AutoInsertPositionTrack;
         _positionTrackUnit = _settings.PositionTrackUnit;
         _positionTrackUnitStr = _positionTrackUnit.ToString();
 
@@ -60,8 +61,15 @@ public static class Main {
     private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginVertical();
 
+        bool prevAuto = _autoInsertPositionTrack;
+        _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, "일시정지 설치 시 길 위치 자동 설정 (PositionTrack)");
+        if (prevAuto != _autoInsertPositionTrack) {
+            _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
+        }
+
         GUILayout.BeginHorizontal();
-        GUILayout.Label("길 위치 단위");
+        GUILayout.Space(20);
+        GUILayout.Label("길 위치 이동 단위");
         GUILayout.Space(8);
         string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
         if (unitInput != _positionTrackUnitStr) {
@@ -116,7 +124,7 @@ public static class Main {
         GUILayout.BeginHorizontal();
         GUILayout.Space(32);
         bool prevAdjust = _adjustPositionTrackWithPause;
-        _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수에 따라 길 위치 조정 (Pause 연동)");
+        _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수(Duration)에 따라 길 위치 배수 적용");
         if (prevAdjust != _adjustPositionTrackWithPause) {
             _settings.AdjustPositionWithPause = _adjustPositionTrackWithPause;
         }
@@ -136,9 +144,6 @@ public static class Main {
 
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
         if (!_isEnabled) return;
-
-        if (CheckShortcut(KeyCode.F4)) {
-        }
 
         if (_pauseShortcutEnabled) {
             if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
@@ -191,7 +196,6 @@ public static class Main {
 
     private static void RemoveTrashUndos() {
         var editor = scnEditor.instance;
-
         if(editor.undoStates.Count >= 2) {
             editor.undoStates.RemoveRange(editor.undoStates.Count - 2, 2);
         } else if(editor.undoStates.Count > 0) {
@@ -211,12 +215,9 @@ public static class Main {
         if(selectedEvent == null) {
             if(delta < 0) return;
 
-            AddEventMethod.Invoke(editor, new object[] {
-                id, LevelEventType.Pause
-            });
+            AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
             shouldShowPanel = true;
-
-            InsertPositionTrack(id + 1);
+            
         } else {
             var data = selectedEvent.GetData();
             float currentDuration = (float) data["duration"];
@@ -229,21 +230,21 @@ public static class Main {
                 if(result >= 3 && result < 4 && delta > 0) data["countdownTicks"] = 4;
                 else if(result >= 2 && result < 3 && delta < 0) data["countdownTicks"] = 0;
 
-                var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                if (nextTrackList.Count > 0) {
-                    editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
+                if (_autoInsertPositionTrack) {
+                    var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                    if (nextTrackList.Count > 0) {
+                        editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
+                    }
+                    InsertPositionTrack(id + 1);
                 }
-                InsertPositionTrack(id + 1);
             } else {
-                editor.RemoveEvents(new List<LevelEvent> {
-                    selectedEvent
-                });
+                editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
 
-                var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                if(nextTrack.Count > 0)
-                    editor.RemoveEvents(new List<LevelEvent> {
-                        nextTrack[0]
-                    });
+                if (_autoInsertPositionTrack) {
+                    var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                    if(nextTrack.Count > 0)
+                        editor.RemoveEvents(new List<LevelEvent> { nextTrack[0] });
+                }
                 shouldShowPanel = false;
             }
         }
@@ -257,13 +258,10 @@ public static class Main {
 
     public static void InsertPositionTrack(int id) {
         var editor = scnEditor.instance;
-
-        Logger.Log(id.ToString());
         if (id - 1 >= editor.levelData.angleData.Count) return;
 
         var relativeAngle = GetFloorRelativeAngle(id - 1);
         if (Mathf.Approximately((float) relativeAngle, 360f)) return;
-
         if (editor.GetFloorEvents(id, LevelEventType.PositionTrack).Count > 0) return;
 
         editor.SaveState();
@@ -282,13 +280,10 @@ public static class Main {
             }
         }
 
-        AddEventMethod.Invoke(editor, new object[] {
-            id, LevelEventType.PositionTrack
-        });
+        AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.PositionTrack });
 
         var lastEvent = editor.events[editor.events.Count - 1];
         var data = lastEvent.GetData();
-        
         data["positionOffset"] = baseOffset * (finalMultiplier * _positionTrackUnit);
         lastEvent.disabled["positionOffset"] = false;
 

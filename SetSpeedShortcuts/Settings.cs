@@ -1,6 +1,7 @@
 ﻿using UnityModManagerNet;
 
 public class Settings : UnityModManager.ModSettings {
+    public bool AutoInsertPositionTrack = true;
     public float PositionTrackUnit = 1f; 
     public bool SpeedShortcutEnabled = true;
     public bool PauseShortcutEnabled = true;
