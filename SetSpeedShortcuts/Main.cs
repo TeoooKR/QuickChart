@@ -58,33 +58,32 @@ public static class Main {
         return true;
     }
 
-    private static void OnGUI(UnityModManager.ModEntry modEntry) {
+private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginVertical();
 
         bool prevAuto = _autoInsertPositionTrack;
-        _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, "일시정지 설치 시 길 위치 자동 설정 (PositionTrack)");
+        _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, "일시정지 설치 시 길 위치 자동 설정");
         if (prevAuto != _autoInsertPositionTrack) {
             _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
         }
-
+        
+        GUI.enabled = _autoInsertPositionTrack; 
         GUILayout.BeginHorizontal();
-        GUILayout.Space(20);
+        GUILayout.Space(32);
         GUILayout.Label("길 위치 이동 단위");
-        GUILayout.Space(8);
         string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
         if (unitInput != _positionTrackUnitStr) {
             _positionTrackUnitStr = unitInput;
             if (float.TryParse(unitInput, out float unitResult)) {
-                if (unitResult <= 0f) unitResult = 0.01f;
                 _positionTrackUnit = unitResult;
+                _settings.Save(modEntry);
                 _settings.PositionTrackUnit = _positionTrackUnit;
             }
         }
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
-
-        GUILayout.Space(10);
-
+        GUI.enabled = true;
+        
         bool prevSpeed = _speedShortcutEnabled;
         _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, "속도 설정 단축키 활성화 (Alt+↑/↓, Alt+Shift+↑/↓)");
         if (prevSpeed != _speedShortcutEnabled) {
@@ -95,7 +94,6 @@ public static class Main {
         GUILayout.BeginHorizontal();
         GUILayout.Space(32);
         GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
-        GUILayout.Space(8);
         string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
         if (input != _bpmDeltaStr) {
             _bpmDeltaStr = input;
@@ -111,9 +109,7 @@ public static class Main {
         GUILayout.FlexibleSpace();
         GUILayout.EndHorizontal();
         GUI.enabled = true;
-
-        GUILayout.Space(10);
-
+        
         bool prevPause = _pauseShortcutEnabled;
         _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, "비트 일시정지 단축키 활성화 (Ctrl+↑/↓)");
         if (prevPause != _pauseShortcutEnabled) {
@@ -124,7 +120,7 @@ public static class Main {
         GUILayout.BeginHorizontal();
         GUILayout.Space(32);
         bool prevAdjust = _adjustPositionTrackWithPause;
-        _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수(Duration)에 따라 길 위치 배수 적용");
+        _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수에 따라 길 위치 배수 적용");
         if (prevAdjust != _adjustPositionTrackWithPause) {
             _settings.AdjustPositionWithPause = _adjustPositionTrackWithPause;
         }
@@ -133,7 +129,6 @@ public static class Main {
 
         GUILayout.EndVertical();
     }
-
     private static void OnSaveGUI(UnityModManager.ModEntry modEntry) {
         _settings.Save(modEntry);
     }
