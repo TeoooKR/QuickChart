@@ -58,7 +58,7 @@ public static class Main {
         return true;
     }
 
-private static void OnGUI(UnityModManager.ModEntry modEntry) {
+    private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginVertical();
 
         bool prevAuto = _autoInsertPositionTrack;
@@ -136,10 +136,9 @@ private static void OnGUI(UnityModManager.ModEntry modEntry) {
     readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
         BindingFlags.NonPublic | BindingFlags.Instance);
 
-
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
         if (!_isEnabled) return;
-
+        
         if (_pauseShortcutEnabled) {
             if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
             if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
@@ -178,6 +177,7 @@ private static void OnGUI(UnityModManager.ModEntry modEntry) {
         }
     }
 
+
     private static bool CheckShortcut(KeyCode key, bool ctrl = false, bool alt = false, bool shift = false, bool useKeyDown = true) {
         bool keyCheck = useKeyDown ? Input.GetKeyDown(key) : Input.GetKey(key);
         if(!keyCheck) return false;
@@ -198,59 +198,113 @@ private static void OnGUI(UnityModManager.ModEntry modEntry) {
         }
     }
 
+    public static void InsertMoveTrack(int id) {
+        var editor = scnEditor.editor;
+        
+        if (id >= editor.floors.Count - 1) {
+            return;
+        }
+
+        decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
+        decimal beats = tileBeats;
+
+        var pause = editor.GetSelectedFloorEvents(LevelEventType.Pause);
+        float pauseDuration = 0f;
+        if (pause.Count > 0) {
+            pauseDuration = System.Convert.ToSingle(pause[0].GetData()["duration"]);
+            beats += (decimal)pauseDuration;
+        }
+
+        AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.MoveTrack });
+
+        var lastEvent = editor.events[editor.events.Count - 1];
+        var data = lastEvent.GetData();
+
+        data["duration"] = (float)beats;
+
+        var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+        if (nextTrackList.Count > 0) {
+            data["positionOffset"] = nextTrackList[0].GetData()["positionOffset"];
+        } 
+        else if (_adjustPositionTrackWithPause && pauseDuration > 0) {
+            float absoluteAngle = editor.levelData.angleData[id];
+            float radian = absoluteAngle * Mathf.Deg2Rad;
+            Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
+            data["positionOffset"] = baseOffset * (pauseDuration * _positionTrackUnit);
+        }
+
+        editor.ApplyEventsToFloors();
+        editor.levelEventsPanel.ShowTabsForFloor(id);
+        editor.levelEventsPanel.ShowPanel(LevelEventType.MoveTrack);
+    }
+
     private static void HandlePause(int delta) {
         var editor = scnEditor.instance;
-        if(!editor.SelectionIsSingle()) return;
+        if (!editor.SelectionIsSingle()) return;
 
         editor.SaveState();
         int id = editor.selectedFloors[0].seqID;
         var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
         bool shouldShowPanel;
 
-        if(selectedEvent == null) {
-            if(delta < 0) return;
-
+        if (selectedEvent == null) {
+            if (delta < 0) return;
             AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
             shouldShowPanel = true;
-            
         } else {
             var data = selectedEvent.GetData();
-            float currentDuration = (float) data["duration"];
+            float currentDuration = (float)data["duration"];
             float result = currentDuration + delta;
 
             if (result > 0) {
                 data["duration"] = result;
                 shouldShowPanel = true;
 
-                if(result >= 3 && result < 4 && delta > 0) data["countdownTicks"] = 4;
-                else if(result >= 2 && result < 3 && delta < 0) data["countdownTicks"] = 0;
+                if (result >= 3 && result < 4 && delta > 0) data["countdownTicks"] = 4;
+                else if (result >= 2 && result < 3 && delta < 0) data["countdownTicks"] = 0;
 
                 if (_autoInsertPositionTrack) {
                     var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                    if (nextTrackList.Count > 0) {
-                        editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
-                    }
+                    if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
                     InsertPositionTrack(id + 1);
                 }
+
+                var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+                if (moveTracks.Count > 0) {
+                    var mtData = moveTracks[0].GetData();
+                    decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
+                    mtData["duration"] = (float)(tileBeats + (decimal)result);
+                    if (_adjustPositionTrackWithPause) {
+                        float absoluteAngle = editor.levelData.angleData[id];
+                        float radian = absoluteAngle * Mathf.Deg2Rad;
+                        Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
+                        mtData["positionOffset"] = baseOffset * (result * _positionTrackUnit);
+                    }
+                }
             } else {
-                editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
+                List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
 
                 if (_autoInsertPositionTrack) {
                     var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                    if(nextTrack.Count > 0)
-                        editor.RemoveEvents(new List<LevelEvent> { nextTrack[0] });
+                    if (nextTrack.Count > 0) eventsToRemove.Add(nextTrack[0]);
                 }
+
+                var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+                if (moveTracks.Count > 0) {
+                    eventsToRemove.Add(moveTracks[0]);
+                }
+
+                editor.RemoveEvents(eventsToRemove);
                 shouldShowPanel = false;
             }
         }
 
         editor.ApplyEventsToFloors();
         editor.levelEventsPanel.ShowTabsForFloor(id);
-        if(shouldShowPanel) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
+        if (shouldShowPanel) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
 
         RemoveTrashUndos();
     }
-
     public static void InsertPositionTrack(int id) {
         var editor = scnEditor.instance;
         if (id - 1 >= editor.levelData.angleData.Count) return;
@@ -285,7 +339,7 @@ private static void OnGUI(UnityModManager.ModEntry modEntry) {
         editor.ApplyEventsToFloors();
     }
 
-    private static double GetFloorRelativeAngle(int floorIndex) {
+    public static double GetFloorRelativeAngle(int floorIndex) {
         var editor = ADOBase.editor;
 
         if (editor == null || floorIndex < 0 || floorIndex >= editor.floors.Count - 1) {
