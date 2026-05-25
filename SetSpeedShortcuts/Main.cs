@@ -241,51 +241,59 @@ public static class Main {
         editor.SaveState();
         int id = editor.selectedFloors[0].seqID;
         var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
+        
+        float finalDuration;
         bool shouldShowPanel;
 
         if (selectedEvent == null) {
             if (delta < 0) return;
             AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
             selectedEvent = editor.events[editor.events.Count - 1];
-            selectedEvent.GetData()["duration"] = (float)delta;
+            
+            finalDuration = (float)delta;
+            selectedEvent.GetData()["duration"] = finalDuration;
             shouldShowPanel = true;
         } else {
-            var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-            var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
-
             var data = selectedEvent.GetData();
             float currentDuration = (float)data["duration"];
-            float result = currentDuration + delta;
-            if (result > 0) {
-                data["duration"] = result;
+            finalDuration = currentDuration + delta;
+            
+            if (finalDuration > 0) {
+                data["duration"] = finalDuration;
                 shouldShowPanel = true;
-
-                if (_autoInsertPositionTrack) {
-                    if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
-                    InsertPositionTrack(id + 1);
-                }
-                if (moveTracks.Count > 0) {
-                    var mtData = moveTracks[0].GetData();
-                    decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
-                    mtData["duration"] = (float)(tileBeats + (decimal)result);
-                    if (_adjustPositionTrackWithPause) {
-                        float absoluteAngle = editor.levelData.angleData[id];
-                        float radian = absoluteAngle * Mathf.Deg2Rad;
-                        Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
-                        mtData["positionOffset"] = baseOffset * (result * _positionTrackUnit);
-                    }
-                }
             } else {
+                var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
                 List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
                 if (_autoInsertPositionTrack && nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
                 if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
                 editor.RemoveEvents(eventsToRemove);
                 shouldShowPanel = false;
+                finalDuration = 0;
             }
         }
 
         if (shouldShowPanel) {
-            UpdateCountdownTicks(selectedEvent, id, delta);
+            if (_autoInsertPositionTrack) {
+                var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
+                InsertPositionTrack(id + 1);
+            }
+
+            var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+            if (moveTracks.Count > 0) {
+                var mtData = moveTracks[0].GetData();
+                decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
+                mtData["duration"] = (float)(tileBeats + (decimal)finalDuration);
+
+                if (_adjustPositionTrackWithPause) {
+                    float absoluteAngle = editor.levelData.angleData[id];
+                    Vector2 baseOffset = new Vector2(Mathf.Cos(absoluteAngle * Mathf.Deg2Rad), Mathf.Sin(absoluteAngle * Mathf.Deg2Rad));
+                    mtData["positionOffset"] = baseOffset * (finalDuration * _positionTrackUnit);
+                }
+            }
+
+            if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id, delta);
             editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
         }
 
@@ -293,6 +301,7 @@ public static class Main {
         editor.levelEventsPanel.ShowTabsForFloor(id);
         RemoveTrashUndos();
     }
+
     public static void InsertPositionTrack(int floorID) {
         var editor = scnEditor.instance;
         if (floorID - 1 >= editor.levelData.angleData.Count) return; // 없는 타일이면 리턴
