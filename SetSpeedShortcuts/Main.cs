@@ -15,7 +15,8 @@ public static class Main {
 
     static float _keyHoldTimer;
     static float _repeatTimer;
-
+    static int _lastBpmDirection;
+    
     readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
         BindingFlags.NonPublic | BindingFlags.Instance);
     
@@ -37,7 +38,6 @@ public static class Main {
     private static bool _pauseShortcutEnabled = true;
         private static bool _adjustPositionTrackWithPause = true;
         public static bool _autoSetCountdownTicks = true;
-    
 
     public static void Setup(UnityModManager.ModEntry modEntry) {
         Logger = modEntry.Logger;
@@ -192,10 +192,21 @@ public static class Main {
         if (_speedShortcutEnabled) {
             if (CheckShortcut(KeyCode.UpArrow, alt: true)) HandleSetSpeed(2.0f, true);
             if (CheckShortcut(KeyCode.DownArrow, alt: true)) HandleSetSpeed(0.5f, true);
+
             bool up = CheckShortcut(KeyCode.UpArrow, alt: true, shift: true, useKeyDown: false);
             bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
+
             if (up || down) {
-                float delta = up ? _bpmDelta : -_bpmDelta;
+                int currentDir = up ? 1 : -1;
+
+                if (currentDir != _lastBpmDirection) {
+                    _keyHoldTimer = 0f;
+                    _repeatTimer = 0f;
+                    _lastBpmDirection = currentDir;
+                }
+
+                float delta = (currentDir == 1) ? _bpmDelta : -_bpmDelta;
+
                 if (_keyHoldTimer == 0f) {
                     HandleSetSpeed(delta, false);
                     _keyHoldTimer += deltaTime;
@@ -212,6 +223,7 @@ public static class Main {
             } else {
                 _keyHoldTimer = 0f;
                 _repeatTimer = 0f;
+                _lastBpmDirection = 0;
             }
         }
     }
