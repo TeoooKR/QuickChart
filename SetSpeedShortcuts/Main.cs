@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Reflection;
 using ADOFAI;
 using HarmonyLib;
@@ -14,32 +16,48 @@ public static class Main {
     static float _keyHoldTimer;
     static float _repeatTimer;
 
+    readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
+        BindingFlags.NonPublic | BindingFlags.Instance);
+    
     public static bool _autoInsertPositionTrack = true;
-    private static string _positionTrackUnitStr = "1";
-    private static float _positionTrackUnit = 1f;
-
+        private static string _positionTrackUnitStr = "1";
+        private static float _positionTrackUnit = 1f;
+    
+    public static bool _autoInsertMoveTrack = true;
+        private static int _easeModeIdx;
+        private static int _easeFuncIdx;
+            readonly private static string[] _easingModes = { "In", "Out", "In-Out" };
+            readonly private static string[] _easingModesFlash = { "-", "In", "Out", "In-Out" };
+            readonly private static string[] _easingFunctions = { "Linear", "Sine", "Quad", "Cubic", "Quart", "Quint", "Expo", "Circ", "Elastic", "Back", "Bounce", "Flash" };
+            
     private static bool _speedShortcutEnabled = true;
-    private static string _bpmDeltaStr = "1";
-    private static float _bpmDelta = 1f;
-
+        private static string _bpmDeltaStr = "1";
+        private static float _bpmDelta = 1f;
+    
     private static bool _pauseShortcutEnabled = true;
-    private static bool _adjustPositionTrackWithPause = true;
+        private static bool _adjustPositionTrackWithPause = true;
+        public static bool _autoSetCountdownTicks = true;
+    
 
     public static void Setup(UnityModManager.ModEntry modEntry) {
         Logger = modEntry.Logger;
-
         _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
 
         _autoInsertPositionTrack = _settings.AutoInsertPositionTrack;
-        _positionTrackUnit = _settings.PositionTrackUnit;
-        _positionTrackUnitStr = _positionTrackUnit.ToString();
+            _positionTrackUnit = _settings.PositionTrackUnit;
+            _positionTrackUnitStr = _positionTrackUnit.ToString(CultureInfo.InvariantCulture);
 
+        _autoInsertMoveTrack = _settings.AutoInsertMoveTrack;
+            _easeFuncIdx = _settings.EaseFunctionIndex;
+            _easeModeIdx = _settings.EaseModeIndex;
+            
         _speedShortcutEnabled = _settings.SpeedShortcutEnabled;
-        _bpmDelta = _settings.BpmDelta;
-        _bpmDeltaStr = _bpmDelta.ToString();
+            _bpmDelta = _settings.BpmDelta;
+            _bpmDeltaStr = _bpmDelta.ToString(CultureInfo.InvariantCulture);
         
         _pauseShortcutEnabled = _settings.PauseShortcutEnabled;
-        _adjustPositionTrackWithPause = _settings.AdjustPositionWithPause;
+            _adjustPositionTrackWithPause = _settings.AdjustPositionWithPause;
+            _autoSetCountdownTicks = _settings.AutoSetCountdownTicks;
 
         modEntry.OnToggle = OnToggle;
         modEntry.OnGUI = OnGUI;
@@ -60,100 +78,124 @@ public static class Main {
 
     private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginVertical();
-
-        bool prevAuto = _autoInsertPositionTrack;
-        _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, "일시정지 설치 시 길 위치 자동 설정");
-        if (prevAuto != _autoInsertPositionTrack) {
-            _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
-        }
-        
-        GUI.enabled = _autoInsertPositionTrack; 
-        GUILayout.BeginHorizontal();
-        GUILayout.Space(32);
-        GUILayout.Label("길 위치 이동 단위");
-        string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
-        if (unitInput != _positionTrackUnitStr) {
-            _positionTrackUnitStr = unitInput;
-            if (float.TryParse(unitInput, out float unitResult)) {
-                _positionTrackUnit = unitResult;
-                _settings.Save(modEntry);
-                _settings.PositionTrackUnit = _positionTrackUnit;
-            }
-        }
-        GUILayout.FlexibleSpace();
-        GUILayout.EndHorizontal();
-        GUI.enabled = true;
-        
+        bool prevAutoPos = _autoInsertPositionTrack;
+        _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, "일시정지 설치 시 길 위치 자동 설치");
+        if (prevAutoPos != _autoInsertPositionTrack) _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
+                GUI.enabled = _autoInsertPositionTrack; 
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(32);
+                GUILayout.Label("길 위치 이동 단위");
+                string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
+                if (unitInput != _positionTrackUnitStr) {
+                    _positionTrackUnitStr = unitInput;
+                    if (float.TryParse(unitInput, out float unitResult)) {
+                        _positionTrackUnit = unitResult;
+                        _settings.PositionTrackUnit = _positionTrackUnit;
+                    }
+                }
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                GUI.enabled = true;
+                
+                
+        bool prevAutoMove = _autoInsertMoveTrack;
+        _autoInsertMoveTrack = GUILayout.Toggle(_autoInsertMoveTrack, "일시정지 설치 시 길 이동 자동 설치");
+        if (prevAutoMove != _autoInsertMoveTrack) _settings.AutoInsertMoveTrack = _autoInsertMoveTrack;
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(32);
+                GUI.enabled = _autoInsertMoveTrack;
+                GUILayout.Label("가감속");
+                GUILayout.EndHorizontal();
+                        GUILayout.BeginHorizontal();
+                        GUILayout.Space(32);
+                        GUILayout.BeginVertical("box", GUILayout.Width(400));
+                        string currentFunc = _easingFunctions[_easeFuncIdx];
+                        bool isLinear = currentFunc == "Linear";
+                        bool isFlash = currentFunc == "Flash";
+                        GUI.enabled = _autoInsertMoveTrack && !isLinear;
+                        string[] currentModes = isFlash ? _easingModesFlash : _easingModes;
+                        if (_easeModeIdx >= currentModes.Length) _easeModeIdx = currentModes.Length - 1;
+                        GUILayout.Label("종류");
+                        int nextModeIdx = GUILayout.Toolbar(_easeModeIdx, currentModes);
+                        if (nextModeIdx != _easeModeIdx) {
+                            _easeModeIdx = nextModeIdx;
+                            _settings.EaseModeIndex = _easeModeIdx;
+                        }
+                        GUI.enabled = _autoInsertMoveTrack;
+                        
+                        GUILayout.Space(15);
+                        
+                        GUILayout.Label("함수");
+                        int nextFuncIdx = GUILayout.SelectionGrid(_easeFuncIdx, _easingFunctions, 4);
+                        if (nextFuncIdx != _easeFuncIdx) {
+                            _easeFuncIdx = nextFuncIdx;
+                            _settings.EaseFunctionIndex = _easeFuncIdx;
+                        }
+                        GUILayout.EndVertical();
+                        GUILayout.FlexibleSpace();
+                        GUILayout.EndHorizontal();
+                        GUI.enabled = true;
+                        
+                        
         bool prevSpeed = _speedShortcutEnabled;
         _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, "속도 설정 단축키 활성화 (Alt+↑/↓, Alt+Shift+↑/↓)");
-        if (prevSpeed != _speedShortcutEnabled) {
-            _settings.SpeedShortcutEnabled = _speedShortcutEnabled;
-        }
-
-        GUI.enabled = _speedShortcutEnabled; 
-        GUILayout.BeginHorizontal();
-        GUILayout.Space(32);
-        GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
-        string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
-        if (input != _bpmDeltaStr) {
-            _bpmDeltaStr = input;
-            if (float.TryParse(input, out float result)) {
-                if (result < 0) result = 0;
-                _bpmDelta = result;
-                _settings.BpmDelta = _bpmDelta;
-            } else if (string.IsNullOrEmpty(input)) {
-                _bpmDelta = 0;
-                _settings.BpmDelta = 0;
-            }
-        }
-        GUILayout.FlexibleSpace();
-        GUILayout.EndHorizontal();
-        GUI.enabled = true;
+        if (prevSpeed != _speedShortcutEnabled) _settings.SpeedShortcutEnabled = _speedShortcutEnabled;
+                GUI.enabled = _speedShortcutEnabled; 
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(32);
+                GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
+                string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
+                if (input != _bpmDeltaStr) {
+                    _bpmDeltaStr = input;
+                    if (float.TryParse(input, out float result)) {
+                        if (result < 0) result = 0;
+                        _bpmDelta = result;
+                        _settings.BpmDelta = _bpmDelta;
+                    }
+                }
+                GUILayout.FlexibleSpace();
+                GUILayout.EndHorizontal();
+                GUI.enabled = true;
         
+                
         bool prevPause = _pauseShortcutEnabled;
         _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, "비트 일시정지 단축키 활성화 (Ctrl+↑/↓)");
-        if (prevPause != _pauseShortcutEnabled) {
-            _settings.PauseShortcutEnabled = _pauseShortcutEnabled;
-        }
-
-        GUI.enabled = _pauseShortcutEnabled;
-        GUILayout.BeginHorizontal();
-        GUILayout.Space(32);
-        bool prevAdjust = _adjustPositionTrackWithPause;
-        _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수에 따라 길 위치 배수 적용");
-        if (prevAdjust != _adjustPositionTrackWithPause) {
-            _settings.AdjustPositionWithPause = _adjustPositionTrackWithPause;
-        }
-        GUILayout.EndHorizontal();
-        GUI.enabled = true;
-
-        GUILayout.EndVertical();
+        if (prevPause != _pauseShortcutEnabled) _settings.PauseShortcutEnabled = _pauseShortcutEnabled;
+                GUI.enabled = _pauseShortcutEnabled;
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(32);
+                bool prevAdjust = _adjustPositionTrackWithPause;
+                _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수에 따라 길 위치 배수 적용");
+                if (prevAdjust != _adjustPositionTrackWithPause) _settings.AdjustPositionWithPause = _adjustPositionTrackWithPause;
+                GUILayout.EndHorizontal();
+                
+                GUILayout.BeginHorizontal();
+                GUILayout.Space(32);
+                bool prevAutoTick = _autoSetCountdownTicks;
+                _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, "카운트다운 틱 자동 설정");
+                if (prevAutoTick != _autoSetCountdownTicks) _settings.AutoSetCountdownTicks = _autoSetCountdownTicks;
+                GUILayout.EndHorizontal();
+                GUI.enabled = true;
+                GUILayout.EndVertical();
     }
+
     private static void OnSaveGUI(UnityModManager.ModEntry modEntry) {
         _settings.Save(modEntry);
     }
-
-    readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
-        BindingFlags.NonPublic | BindingFlags.Instance);
-
+    
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
         if (!_isEnabled) return;
-        
         if (_pauseShortcutEnabled) {
             if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
             if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
         }
-
         if (_speedShortcutEnabled) {
             if (CheckShortcut(KeyCode.UpArrow, alt: true)) HandleSetSpeed(2.0f, true);
             if (CheckShortcut(KeyCode.DownArrow, alt: true)) HandleSetSpeed(0.5f, true);
-
             bool up = CheckShortcut(KeyCode.UpArrow, alt: true, shift: true, useKeyDown: false);
             bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
-
             if (up || down) {
                 float delta = up ? _bpmDelta : -_bpmDelta;
-
                 if (_keyHoldTimer == 0f) {
                     HandleSetSpeed(delta, false);
                     _keyHoldTimer += deltaTime;
@@ -171,82 +213,16 @@ public static class Main {
                 _keyHoldTimer = 0f;
                 _repeatTimer = 0f;
             }
-        } else {
-            _keyHoldTimer = 0f;
-            _repeatTimer = 0f;
         }
     }
-
-
-    private static bool CheckShortcut(KeyCode key, bool ctrl = false, bool alt = false, bool shift = false, bool useKeyDown = true) {
-        bool keyCheck = useKeyDown ? Input.GetKeyDown(key) : Input.GetKey(key);
-        if(!keyCheck) return false;
-
-        bool isCtrlPressed = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
-        bool isAltPressed = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
-        bool isShiftPressed = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-
-        return isCtrlPressed == ctrl && isAltPressed == alt && isShiftPressed == shift;
-    }
-
-    private static void RemoveTrashUndos() {
-        var editor = scnEditor.instance;
-        if(editor.undoStates.Count >= 2) {
-            editor.undoStates.RemoveRange(editor.undoStates.Count - 2, 2);
-        } else if(editor.undoStates.Count > 0) {
-            editor.undoStates.RemoveAt(editor.undoStates.Count - 1);
-        }
-    }
-
-    public static void InsertMoveTrack(int id) {
-        var editor = scnEditor.editor;
-        
-        if (id >= editor.floors.Count - 1) {
-            return;
-        }
-
-        decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
-        decimal beats = tileBeats;
-
-        var pause = editor.GetSelectedFloorEvents(LevelEventType.Pause);
-        float pauseDuration = 0f;
-        if (pause.Count > 0) {
-            pauseDuration = System.Convert.ToSingle(pause[0].GetData()["duration"]);
-            beats += (decimal)pauseDuration;
-        }
-
-        AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.MoveTrack });
-
-        var lastEvent = editor.events[editor.events.Count - 1];
-        var data = lastEvent.GetData();
-
-        data["duration"] = (float)beats;
-
-        var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-        if (nextTrackList.Count > 0) {
-            data["positionOffset"] = nextTrackList[0].GetData()["positionOffset"];
-        } 
-        else if (_adjustPositionTrackWithPause && pauseDuration > 0) {
-            float absoluteAngle = editor.levelData.angleData[id];
-            float radian = absoluteAngle * Mathf.Deg2Rad;
-            Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
-            data["positionOffset"] = baseOffset * (pauseDuration * _positionTrackUnit);
-        }
-
-        editor.ApplyEventsToFloors();
-        editor.levelEventsPanel.ShowTabsForFloor(id);
-        editor.levelEventsPanel.ShowPanel(LevelEventType.MoveTrack);
-    }
-
+    
     private static void HandlePause(int delta) {
         var editor = scnEditor.instance;
-        if (!editor.SelectionIsSingle()) return;
-
+        if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
         editor.SaveState();
         int id = editor.selectedFloors[0].seqID;
         var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
         bool shouldShowPanel;
-
         if (selectedEvent == null) {
             if (delta < 0) return;
             AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
@@ -255,20 +231,21 @@ public static class Main {
             var data = selectedEvent.GetData();
             float currentDuration = (float)data["duration"];
             float result = currentDuration + delta;
-
             if (result > 0) {
                 data["duration"] = result;
                 shouldShowPanel = true;
-
-                if (result >= 3 && result < 4 && delta > 0) data["countdownTicks"] = 4;
-                else if (result >= 2 && result < 3 && delta < 0) data["countdownTicks"] = 0;
-
+                if (_autoSetCountdownTicks) {
+                    decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
+                    decimal totalBeats = tileBeats + (decimal)result;
+                    if (IsFloorRelativeAngle360(id)) totalBeats -= 1;
+                    if (totalBeats >= 4m && totalBeats < 5m && delta > 0) data["countdownTicks"] = 4;
+                    else if (totalBeats >= 3m && totalBeats < 4m && delta < 0) data["countdownTicks"] = 0;
+                }
                 if (_autoInsertPositionTrack) {
                     var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
                     if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
                     InsertPositionTrack(id + 1);
                 }
-
                 var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
                 if (moveTracks.Count > 0) {
                     var mtData = moveTracks[0].GetData();
@@ -283,98 +260,116 @@ public static class Main {
                 }
             } else {
                 List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
-
                 if (_autoInsertPositionTrack) {
                     var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
                     if (nextTrack.Count > 0) eventsToRemove.Add(nextTrack[0]);
                 }
-
                 var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
-                if (moveTracks.Count > 0) {
-                    eventsToRemove.Add(moveTracks[0]);
-                }
-
+                if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
                 editor.RemoveEvents(eventsToRemove);
                 shouldShowPanel = false;
             }
         }
-
         editor.ApplyEventsToFloors();
         editor.levelEventsPanel.ShowTabsForFloor(id);
         if (shouldShowPanel) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
-
         RemoveTrashUndos();
     }
-    public static void InsertPositionTrack(int id) {
+
+    public static void InsertPositionTrack(int floorID) {
         var editor = scnEditor.instance;
-        if (id - 1 >= editor.levelData.angleData.Count) return;
-
-        var relativeAngle = GetFloorRelativeAngle(id - 1);
-        if (Mathf.Approximately((float) relativeAngle, 360f)) return;
-        if (editor.GetFloorEvents(id, LevelEventType.PositionTrack).Count > 0) return;
-
-        editor.SaveState();
-        float absoluteAngle = editor.levelData.angleData[id - 1];
+        if (floorID - 1 >= editor.levelData.angleData.Count) return; // 없는 타일이면 리턴
+        if (IsFloorRelativeAngle360(floorID - 1)) return; // 전 타일이 360도면 리턴
+        if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return; // 길 위치가 있으면 리턴
+        float absoluteAngle = editor.levelData.angleData[floorID - 1];
         float radian = absoluteAngle * Mathf.Deg2Rad;
         Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
-
         float finalMultiplier = 1f;
         if (_adjustPositionTrackWithPause) {
-            var pauseEvents = editor.GetFloorEvents(id - 1, LevelEventType.Pause);
+            var pauseEvents = editor.GetFloorEvents(floorID - 1, LevelEventType.Pause);
             if (pauseEvents != null && pauseEvents.Count > 0) {
                 var pauseData = pauseEvents[0].GetData();
-                if (pauseData.ContainsKey("duration")) {
-                    finalMultiplier = System.Convert.ToSingle(pauseData["duration"]);
-                }
+                finalMultiplier = Convert.ToSingle(pauseData["duration"]);
             }
         }
-
-        AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.PositionTrack });
-
+        AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.PositionTrack });
         var lastEvent = editor.events[editor.events.Count - 1];
         var data = lastEvent.GetData();
         data["positionOffset"] = baseOffset * (finalMultiplier * _positionTrackUnit);
         lastEvent.disabled["positionOffset"] = false;
-
         editor.ApplyEventsToFloors();
     }
-
-    public static double GetFloorRelativeAngle(int floorIndex) {
+    
+    public static void InsertMoveTrack(int floorID) {
         var editor = ADOBase.editor;
-
-        if (editor == null || floorIndex < 0 || floorIndex >= editor.floors.Count - 1) {
-            return 0;
+        if (floorID >= editor.floors.Count - 1) return; // 없는 타일이면 리턴
+        if (IsFloorRelativeAngle360(floorID)) return; // 360도 타일이면 리턴
+        if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return; // 길 이동이 있으면 리턴
+        
+        decimal tileBeats = (decimal)GetFloorRelativeAngle(floorID) / 180m;
+        decimal beats = tileBeats;
+        var pause = editor.GetFloorEvents(floorID, LevelEventType.Pause);
+        float pauseDuration = 0f;
+        if (pause.Count > 0) {
+            pauseDuration = Convert.ToSingle(pause[0].GetData()["duration"]);
+            beats += (decimal)pauseDuration;
+        }
+        AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.MoveTrack });
+        
+        var lastEvent = editor.events[editor.events.Count - 1];
+        var data = lastEvent.GetData();
+        data["duration"] = (float)beats;
+        var nextTrackList = editor.GetFloorEvents(floorID + 1, LevelEventType.PositionTrack);
+        if (nextTrackList.Count > 0) {
+            data["positionOffset"] = nextTrackList[0].GetData()["positionOffset"];
+        } else if (_adjustPositionTrackWithPause && pauseDuration > 0) {
+            float absoluteAngle = editor.levelData.angleData[floorID];
+            float radian = absoluteAngle * Mathf.Deg2Rad;
+            Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
+            data["positionOffset"] = baseOffset * (pauseDuration * _positionTrackUnit);
         }
 
-        ADOBase.lm.CalculateFloorAngleLengths();
+        string func = _easingFunctions[_easeFuncIdx];
+        string resultEaseStr;
 
-        var floor = editor.floors[floorIndex];
+        if (func == "Linear") {
+            resultEaseStr = "Linear";
+        } else if (func == "Flash") {
+            string mode = _easingModesFlash[_easeModeIdx];
+            if (mode == "-") resultEaseStr = "Flash";
+            else resultEaseStr = mode.Replace("-", "") + "Flash";
+        } else {
+            string mode = _easingModes[_easeModeIdx];
+            resultEaseStr = mode.Replace("-", "") + func;
+        }
 
-        double angle = floor.angleLength * Mathf.Rad2Deg;
-
-        return angle;
+        var easeType = lastEvent.info.propertiesInfo["ease"].enumType;
+        try {
+            data["ease"] = Enum.Parse(easeType, resultEaseStr);
+        } catch {
+            data["ease"] = Enum.Parse(easeType, "Linear");
+        }
+        editor.ApplyEventsToFloors();
+        scnEditor.instance.RemakePath();
+        editor.levelEventsPanel.ShowTabsForFloor(floorID);
+        editor.levelEventsPanel.ShowPanel(LevelEventType.MoveTrack);
+        
+        RemoveTrashUndos();
     }
     
     private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
         var editor = scnEditor.instance;
-        if (!editor.SelectionIsSingle()) return;
+        if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
         editor.SaveState();
-        int id = editor.selectedFloors[0].seqID;
-
+        int floorID = editor.selectedFloors[0].seqID;
         var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed)?.Find(e => true);
-
-        float prevTileSpeed = (id > 0) ? editor.floors[id - 1].speed : 1f;
+        float prevTileSpeed = (floorID > 0) ? editor.floors[floorID - 1].speed : 1f;
         float prevBpm = editor.levelData.bpm * prevTileSpeed;
         bool shouldShowPanel;
-
         if (selectedEvent == null) {
-            AddEventMethod.Invoke(editor, new object[] {
-                id, LevelEventType.SetSpeed
-            });
-
+            AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.SetSpeed });
             var lastEvent = editor.events[editor.events.Count - 1];
             var data = lastEvent.GetData();
-
             if (calculateByMultiplier) {
                 data["speedType"] = SpeedType.Multiplier;
                 data["bpmMultiplier"] = value;
@@ -386,42 +381,30 @@ public static class Main {
             var data = selectedEvent.GetData();
             var currentType = data["speedType"];
             bool isBpmMode = currentType.ToString() == "Bpm" || currentType.ToString() == "0";
-
             if (calculateByMultiplier) {
                 string targetKey = isBpmMode ? "beatsPerMinute" : "bpmMultiplier";
-                float currentVal = System.Convert.ToSingle(data[targetKey]);
+                float currentVal = Convert.ToSingle(data[targetKey]);
                 float nextVal = currentVal * value;
-
-                if (nextVal > 0f) {
-                    data[targetKey] = nextVal;
-                }
+                if (nextVal > 0f) data[targetKey] = nextVal;
             } else {
-                float currentBpm = isBpmMode ? System.Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * System.Convert.ToSingle(data["bpmMultiplier"]);
-
+                float currentBpm = isBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
                 decimal preciseBpm = (decimal) currentBpm + (decimal) value;
-
                 if (preciseBpm > 0m) {
                     data["speedType"] = SpeedType.Bpm;
                     data["beatsPerMinute"] = (float) preciseBpm;
                 }
             }
-
             bool nowBpmMode = data["speedType"].ToString() == "Bpm" || data["speedType"].ToString() == "0";
-            float finalSpeed = nowBpmMode ? System.Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * System.Convert.ToSingle(data["bpmMultiplier"]);
-
+            float finalSpeed = nowBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
             if (Mathf.Approximately(finalSpeed, prevBpm)) {
-                editor.RemoveEvents(new List<LevelEvent> {
-                    selectedEvent
-                });
+                editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
                 shouldShowPanel = false;
             } else {
                 shouldShowPanel = true;
             }
-
         }
-
         editor.ApplyEventsToFloors();
-        editor.levelEventsPanel.ShowTabsForFloor(id);
+        editor.levelEventsPanel.ShowTabsForFloor(floorID);
         if (shouldShowPanel) {
             var targetEvent = selectedEvent ?? editor.events[editor.events.Count - 1];
             editor.levelEventsPanel.ShowPanel(LevelEventType.SetSpeed);
@@ -429,7 +412,32 @@ public static class Main {
             editor.levelEventsPanel.UpdatePropertyText(targetEvent, "bpmMultiplier");
             editor.levelEventsPanel.UpdatePropertyText(targetEvent, "speedType");
         }
-
         RemoveTrashUndos();
+    }
+
+    public static double GetFloorRelativeAngle(int floorID) {
+        var editor = ADOBase.editor;
+        if (editor == null || floorID < 0 || floorID >= editor.floors.Count - 1) return 0;
+        ADOBase.lm.CalculateFloorAngleLengths();
+        var floor = editor.floors[floorID];
+        return floor.angleLength * Mathf.Rad2Deg;
+    }
+
+    private static bool IsFloorRelativeAngle360(int floorID) => 
+        Mathf.Approximately((float)GetFloorRelativeAngle(floorID), 360f);
+    
+    private static bool CheckShortcut(KeyCode key, bool ctrl = false, bool alt = false, bool shift = false, bool useKeyDown = true) {
+        bool keyCheck = useKeyDown ? Input.GetKeyDown(key) : Input.GetKey(key);
+        if(!keyCheck) return false;
+        bool isCtrlPressed = Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl);
+        bool isAltPressed = Input.GetKey(KeyCode.LeftAlt) || Input.GetKey(KeyCode.RightAlt);
+        bool isShiftPressed = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        return isCtrlPressed == ctrl && isAltPressed == alt && isShiftPressed == shift;
+    }
+    
+    private static void RemoveTrashUndos() {
+        var editor = scnEditor.instance;
+        if(editor.undoStates.Count >= 2) editor.undoStates.RemoveRange(editor.undoStates.Count - 2, 2);
+        else if(editor.undoStates.Count > 0) editor.undoStates.RemoveAt(editor.undoStates.Count - 1);
     }
 }

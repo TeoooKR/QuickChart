@@ -45,13 +45,13 @@ public static class InsertFloatFloorPatch {
 [HarmonyPatch(typeof(scnEditor),"AddEvent")]
 public static class AddEventPatch { 
     public static void Postfix(int floorID, LevelEventType eventType) {
-        if (Main._autoInsertPositionTrack && eventType == LevelEventType.Pause) {
-            Main.InsertPositionTrack(floorID + 1);
-            if (floorID >= scnEditor.editor.floors.Count - 1) {
-            } else {
-                Main.InsertMoveTrack(floorID);
+        if (eventType == LevelEventType.Pause) {
+            if (Main._autoInsertPositionTrack) {
+                Main.InsertPositionTrack(floorID + 1);
             }
-            
+            if (Main._autoInsertMoveTrack) {
+                Main.InsertMoveTrack(floorID);
+            }    
         }
     }
 }

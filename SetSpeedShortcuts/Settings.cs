@@ -2,11 +2,18 @@
 
 public class Settings : UnityModManager.ModSettings {
     public bool AutoInsertPositionTrack = true;
-    public float PositionTrackUnit = 1f; 
+        public float PositionTrackUnit = 1f;
+    
+    public bool AutoInsertMoveTrack = true;
+        public int EaseModeIndex = 0;
+        public int EaseFunctionIndex = 9;
+
     public bool SpeedShortcutEnabled = true;
+        public float BpmDelta = 1f;
+
     public bool PauseShortcutEnabled = true;
-    public bool AdjustPositionWithPause = true;
-    public float BpmDelta = 1f;
+        public bool AdjustPositionWithPause = true;
+        public bool AutoSetCountdownTicks = true;
     
     public override void Save(UnityModManager.ModEntry modEntry)
     {
