@@ -216,6 +216,25 @@ public static class Main {
         }
     }
     
+    public static void UpdateCountdownTicks(LevelEvent pauseEvent, int floorID, int delta = 0) {
+        if (!_autoSetCountdownTicks || pauseEvent == null) return;
+
+        var data = pauseEvent.GetData();
+        float duration = Convert.ToSingle(data["duration"]);
+        decimal tileBeats = (decimal)GetFloorRelativeAngle(floorID) / 180m;
+        decimal totalBeats = tileBeats + (decimal)duration;
+
+        if (IsFloorRelativeAngle360(floorID)) {
+            data["countdownTicks"] = 0;
+        }
+        
+        if (totalBeats >= 4m && totalBeats < 5m && delta >= 0) {
+            data["countdownTicks"] = 4;
+        } else if (totalBeats >= 3m && totalBeats < 4m && delta < 0) {
+            data["countdownTicks"] = 0;
+        }
+    }
+    
     private static void HandlePause(int delta) {
         var editor = scnEditor.instance;
         if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
@@ -223,9 +242,12 @@ public static class Main {
         int id = editor.selectedFloors[0].seqID;
         var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
         bool shouldShowPanel;
+
         if (selectedEvent == null) {
             if (delta < 0) return;
             AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
+            selectedEvent = editor.events[editor.events.Count - 1];
+            selectedEvent.GetData()["duration"] = (float)delta;
             shouldShowPanel = true;
         } else {
             var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
@@ -237,13 +259,7 @@ public static class Main {
             if (result > 0) {
                 data["duration"] = result;
                 shouldShowPanel = true;
-                if (_autoSetCountdownTicks) {
-                    decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
-                    decimal totalBeats = tileBeats + (decimal)result;
-                    if (IsFloorRelativeAngle360(id)) totalBeats -= 1;
-                    if (totalBeats >= 4m && totalBeats < 5m && delta > 0) data["countdownTicks"] = 4;
-                    else if (totalBeats >= 3m && totalBeats < 4m && delta < 0) data["countdownTicks"] = 0;
-                }
+
                 if (_autoInsertPositionTrack) {
                     if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
                     InsertPositionTrack(id + 1);
@@ -261,17 +277,20 @@ public static class Main {
                 }
             } else {
                 List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
-                if (_autoInsertPositionTrack) {
-                    if (nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
-                }
+                if (_autoInsertPositionTrack && nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
                 if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
                 editor.RemoveEvents(eventsToRemove);
                 shouldShowPanel = false;
             }
         }
+
+        if (shouldShowPanel) {
+            UpdateCountdownTicks(selectedEvent, id, delta);
+            editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
+        }
+
         editor.ApplyEventsToFloors();
         editor.levelEventsPanel.ShowTabsForFloor(id);
-        if (shouldShowPanel) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
         RemoveTrashUndos();
     }
     public static void InsertPositionTrack(int floorID) {

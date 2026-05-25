@@ -15,8 +15,7 @@ public class Settings : UnityModManager.ModSettings {
         public bool AdjustPositionWithPause = true;
         public bool AutoSetCountdownTicks = true;
     
-    public override void Save(UnityModManager.ModEntry modEntry)
-    {
+    public override void Save(UnityModManager.ModEntry modEntry) {
         Save(this, modEntry);
     }
 }
