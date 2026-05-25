@@ -88,7 +88,7 @@ public static class Main {
                 string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
                 if (unitInput != _positionTrackUnitStr) {
                     _positionTrackUnitStr = unitInput;
-                    if (float.TryParse(unitInput, out float unitResult)) {
+                    if (float.TryParse(unitInput, NumberStyles.Float, CultureInfo.InvariantCulture, out float unitResult)) {
                         _positionTrackUnit = unitResult;
                         _settings.PositionTrackUnit = _positionTrackUnit;
                     }
@@ -147,7 +147,7 @@ public static class Main {
                 string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
                 if (input != _bpmDeltaStr) {
                     _bpmDeltaStr = input;
-                    if (float.TryParse(input, out float result)) {
+                    if (float.TryParse(input,NumberStyles.Float, CultureInfo.InvariantCulture, out float result)) {
                         if (result < 0) result = 0;
                         _bpmDelta = result;
                         _settings.BpmDelta = _bpmDelta;
@@ -228,6 +228,9 @@ public static class Main {
             AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
             shouldShowPanel = true;
         } else {
+            var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+            var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+
             var data = selectedEvent.GetData();
             float currentDuration = (float)data["duration"];
             float result = currentDuration + delta;
@@ -242,11 +245,9 @@ public static class Main {
                     else if (totalBeats >= 3m && totalBeats < 4m && delta < 0) data["countdownTicks"] = 0;
                 }
                 if (_autoInsertPositionTrack) {
-                    var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
                     if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
                     InsertPositionTrack(id + 1);
                 }
-                var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
                 if (moveTracks.Count > 0) {
                     var mtData = moveTracks[0].GetData();
                     decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
@@ -261,10 +262,8 @@ public static class Main {
             } else {
                 List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
                 if (_autoInsertPositionTrack) {
-                    var nextTrack = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                    if (nextTrack.Count > 0) eventsToRemove.Add(nextTrack[0]);
+                    if (nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
                 }
-                var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
                 if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
                 editor.RemoveEvents(eventsToRemove);
                 shouldShowPanel = false;
@@ -275,7 +274,6 @@ public static class Main {
         if (shouldShowPanel) editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
         RemoveTrashUndos();
     }
-
     public static void InsertPositionTrack(int floorID) {
         var editor = scnEditor.instance;
         if (floorID - 1 >= editor.levelData.angleData.Count) return; // 없는 타일이면 리턴
