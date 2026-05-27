@@ -1,6 +1,7 @@
 ﻿using ADOFAI;
 using HarmonyLib;
-using UnityEngine;
+
+// namespace SetSpeedShortcuts {
 [HarmonyPatch(typeof(scnEditor), "InsertFloatFloor")]
 public static class InsertFloatFloorPatch {
     public static void Postfix() {
@@ -18,7 +19,7 @@ public static class InsertFloatFloorPatch {
 
         var pauseEventsOnCurrent = editor.GetFloorEvents(floorID, LevelEventType.Pause);
         if (pauseEventsOnCurrent.Count > 0) {
-            Main.UpdateCountdownTicks(pauseEventsOnCurrent[0], floorID, 0);
+            Main.UpdateCountdownTicks(pauseEventsOnCurrent[0], floorID);
         }
 
         if (Main._autoInsertPositionTrack) {
@@ -34,14 +35,14 @@ public static class InsertFloatFloorPatch {
                     if (ptList.Count > 0) {
                         mtData["positionOffset"] = ptList[0].GetData()["positionOffset"];
                     }
-                    
+                
                     decimal tileBeats = (decimal)Main.GetFloorRelativeAngle(floorID) / 180m;
                     float pauseDuration = System.Convert.ToSingle(pauseEventsOnCurrent[0].GetData()["duration"]);
                     mtData["duration"] = (float)(tileBeats + (decimal)pauseDuration);
                 }
             }
         }
-        
+    
         editor.ApplyEventsToFloors();
     }
 }
@@ -59,3 +60,4 @@ public static class AddEventPatch {
         }
     }
 }
+// }

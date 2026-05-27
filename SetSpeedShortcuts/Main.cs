@@ -7,6 +7,7 @@ using HarmonyLib;
 using UnityModManagerNet;
 using UnityEngine;
 
+// namespace SetSpeedShortcuts {
 public static class Main {
     public static UnityModManager.ModEntry.ModLogger Logger;
     private static Harmony _harmony;
@@ -17,6 +18,9 @@ public static class Main {
     static float _repeatTimer;
     static int _lastBpmDirection;
     
+    private static bool _isKorean = true;
+    private static bool _swapShortcuts;
+
     readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
         BindingFlags.NonPublic | BindingFlags.Instance);
     
@@ -37,11 +41,14 @@ public static class Main {
     
     private static bool _pauseShortcutEnabled = true;
         private static bool _adjustPositionTrackWithPause = true;
-        public static bool _autoSetCountdownTicks = true;
+        private static bool _autoSetCountdownTicks = true;
 
     public static void Setup(UnityModManager.ModEntry modEntry) {
         Logger = modEntry.Logger;
         _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
+
+        _isKorean = _settings.IsKorean;
+        _swapShortcuts = _settings.SwapShortcuts;
 
         _autoInsertPositionTrack = _settings.AutoInsertPositionTrack;
             _positionTrackUnit = _settings.PositionTrackUnit;
@@ -65,6 +72,11 @@ public static class Main {
         modEntry.OnUpdate = OnUpdate;
     }
 
+    private static string GetTranslation(string kr, string en)
+    {
+        return _isKorean ? kr : en;
+    }
+
     private static bool OnToggle(UnityModManager.ModEntry modEntry, bool value) {
         _isEnabled = value;
         if (value) {
@@ -78,13 +90,32 @@ public static class Main {
 
     private static void OnGUI(UnityModManager.ModEntry modEntry) {
         GUILayout.BeginVertical();
+
+        GUILayout.BeginHorizontal();
+        GUILayout.Label("Language / 언어 설정:", GUILayout.ExpandWidth(false));
+        GUILayout.Space(10f);
+        int langIdx = _isKorean ? 0 : 1;
+        int nextLangIdx = GUILayout.Toolbar(langIdx, new[] { "한국어", "English" }, GUILayout.Width(200f));
+        if (langIdx != nextLangIdx) {
+            _isKorean = (nextLangIdx == 0);
+            _settings.IsKorean = _isKorean;
+        }
+        GUILayout.FlexibleSpace();
+        GUILayout.EndHorizontal();
+
+        bool prevSwap = _swapShortcuts;
+        _swapShortcuts = GUILayout.Toggle(_swapShortcuts, GetTranslation("Ctrl, Alt 단축키 반전", "Swap Ctrl and Alt"));
+        if (prevSwap != _swapShortcuts) _settings.SwapShortcuts = _swapShortcuts;
+
+        GUILayout.Space(10f);
+
         bool prevAutoPos = _autoInsertPositionTrack;
-        _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, "일시정지 설치 시 길 위치 자동 설치");
+        _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, GetTranslation("일시정지 설치 시 길 위치 자동 설치", "Auto-insert Position Track on Pause"));
         if (prevAutoPos != _autoInsertPositionTrack) _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
                 GUI.enabled = _autoInsertPositionTrack; 
                 GUILayout.BeginHorizontal();
                 GUILayout.Space(32);
-                GUILayout.Label("길 위치 이동 단위");
+                GUILayout.Label(GetTranslation("길 위치 이동 단위", "Position Track unit"));
                 string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
                 if (unitInput != _positionTrackUnitStr) {
                     _positionTrackUnitStr = unitInput;
@@ -99,12 +130,12 @@ public static class Main {
                 
                 
         bool prevAutoMove = _autoInsertMoveTrack;
-        _autoInsertMoveTrack = GUILayout.Toggle(_autoInsertMoveTrack, "일시정지 설치 시 길 이동 자동 설치");
+        _autoInsertMoveTrack = GUILayout.Toggle(_autoInsertMoveTrack, GetTranslation("일시정지 설치 시 길 이동 자동 설치", "Auto-insert Move Track on Pause"));
         if (prevAutoMove != _autoInsertMoveTrack) _settings.AutoInsertMoveTrack = _autoInsertMoveTrack;
                 GUILayout.BeginHorizontal();
                 GUILayout.Space(32);
                 GUI.enabled = _autoInsertMoveTrack;
-                GUILayout.Label("가감속");
+                GUILayout.Label(GetTranslation("가감속", "Easing"));
                 GUILayout.EndHorizontal();
                         GUILayout.BeginHorizontal();
                         GUILayout.Space(32);
@@ -115,7 +146,7 @@ public static class Main {
                         GUI.enabled = _autoInsertMoveTrack && !isLinear;
                         string[] currentModes = isFlash ? _easingModesFlash : _easingModes;
                         if (_easeModeIdx >= currentModes.Length) _easeModeIdx = currentModes.Length - 1;
-                        GUILayout.Label("종류");
+                        GUILayout.Label(GetTranslation("종류", "Mode"));
                         int nextModeIdx = GUILayout.Toolbar(_easeModeIdx, currentModes);
                         if (nextModeIdx != _easeModeIdx) {
                             _easeModeIdx = nextModeIdx;
@@ -125,7 +156,7 @@ public static class Main {
                         
                         GUILayout.Space(15);
                         
-                        GUILayout.Label("함수");
+                        GUILayout.Label(GetTranslation("함수", "Function"));
                         int nextFuncIdx = GUILayout.SelectionGrid(_easeFuncIdx, _easingFunctions, 4);
                         if (nextFuncIdx != _easeFuncIdx) {
                             _easeFuncIdx = nextFuncIdx;
@@ -138,12 +169,14 @@ public static class Main {
                         
                         
         bool prevSpeed = _speedShortcutEnabled;
-        _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, "속도 설정 단축키 활성화 (Alt+↑/↓, Alt+Shift+↑/↓)");
+        string speedShortcutStr = _swapShortcuts ? "(Ctrl+↑/↓, Ctrl+Shift+↑/↓)" : "(Alt+↑/↓, Alt+Shift+↑/↓)";
+        _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, GetTranslation("속도 설정 단축키 활성화 ", "Enable Set Speed Shortcut ") + speedShortcutStr);
         if (prevSpeed != _speedShortcutEnabled) _settings.SpeedShortcutEnabled = _speedShortcutEnabled;
                 GUI.enabled = _speedShortcutEnabled; 
                 GUILayout.BeginHorizontal();
                 GUILayout.Space(32);
-                GUILayout.Label("Alt+Shift+↑/↓ BPM 변화량");
+                string bpmShortcutStr = _swapShortcuts ? "Ctrl+Shift+↑/↓ " : "Alt+Shift+↑/↓ ";
+                GUILayout.Label(bpmShortcutStr + GetTranslation("BPM 변화량", "BPM Change Amount"));
                 string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
                 if (input != _bpmDeltaStr) {
                     _bpmDeltaStr = input;
@@ -159,20 +192,21 @@ public static class Main {
         
                 
         bool prevPause = _pauseShortcutEnabled;
-        _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, "비트 일시정지 단축키 활성화 (Ctrl+↑/↓)");
+        string pauseShortcutStr = _swapShortcuts ? "(Alt+↑/↓)" : "(Ctrl+↑/↓)";
+        _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, GetTranslation("비트 일시정지 단축키 활성화 ", "Enable Pause Shortcut ") + pauseShortcutStr);
         if (prevPause != _pauseShortcutEnabled) _settings.PauseShortcutEnabled = _pauseShortcutEnabled;
                 GUI.enabled = _pauseShortcutEnabled;
                 GUILayout.BeginHorizontal();
                 GUILayout.Space(32);
                 bool prevAdjust = _adjustPositionTrackWithPause;
-                _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, "비트 수에 따라 길 위치 배수 적용");
+                _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, GetTranslation("비트 수에 따라 길 위치 배수 적용", "Scale Position offset with Pause duration"));
                 if (prevAdjust != _adjustPositionTrackWithPause) _settings.AdjustPositionWithPause = _adjustPositionTrackWithPause;
                 GUILayout.EndHorizontal();
                 
                 GUILayout.BeginHorizontal();
                 GUILayout.Space(32);
                 bool prevAutoTick = _autoSetCountdownTicks;
-                _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, "카운트다운 틱 자동 설정");
+                _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, GetTranslation("카운트다운 틱 자동 설정", "Scale Position Track by Pause duration"));
                 if (prevAutoTick != _autoSetCountdownTicks) _settings.AutoSetCountdownTicks = _autoSetCountdownTicks;
                 GUILayout.EndHorizontal();
                 GUI.enabled = true;
@@ -185,16 +219,22 @@ public static class Main {
     
     private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
         if (!_isEnabled) return;
+
+        bool pauseCtrl = !_swapShortcuts;
+        bool pauseAlt = _swapShortcuts;
+        bool speedCtrl = _swapShortcuts;
+        bool speedAlt = !_swapShortcuts;
+
         if (_pauseShortcutEnabled) {
-            if (CheckShortcut(KeyCode.UpArrow, ctrl: true)) HandlePause(1);
-            if (CheckShortcut(KeyCode.DownArrow, ctrl: true)) HandlePause(-1);
+            if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(1);
+            if (CheckShortcut(KeyCode.DownArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(-1);
         }
         if (_speedShortcutEnabled) {
-            if (CheckShortcut(KeyCode.UpArrow, alt: true)) HandleSetSpeed(2.0f, true);
-            if (CheckShortcut(KeyCode.DownArrow, alt: true)) HandleSetSpeed(0.5f, true);
+            if (CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(2.0f, true);
+            if (CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(0.5f, true);
 
-            bool up = CheckShortcut(KeyCode.UpArrow, alt: true, shift: true, useKeyDown: false);
-            bool down = CheckShortcut(KeyCode.DownArrow, alt: true, shift: true, useKeyDown: false);
+            bool up = CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt, shift: true, useKeyDown: false);
+            bool down = CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt, shift: true, useKeyDown: false);
 
             if (up || down) {
                 int currentDir = up ? 1 : -1;
@@ -262,7 +302,7 @@ public static class Main {
             AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
             selectedEvent = editor.events[editor.events.Count - 1];
             
-            finalDuration = (float)delta;
+            finalDuration = delta;
             selectedEvent.GetData()["duration"] = finalDuration;
             shouldShowPanel = true;
         } else {
@@ -479,3 +519,4 @@ public static class Main {
         else if(editor.undoStates.Count > 0) editor.undoStates.RemoveAt(editor.undoStates.Count - 1);
     }
 }
+// }
