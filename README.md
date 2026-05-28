@@ -1,4 +1,4 @@
-# SetSpeedShortcuts
+# QuickChart
 ## 소개 / Introduction
 
 에디터에서 **속도 설정** 이벤트를 단축키로 빠르게 조절합니다.

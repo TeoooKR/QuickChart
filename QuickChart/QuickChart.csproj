@@ -8,8 +8,8 @@
         <ProjectGuid>{BCDB4534-6EC0-40E2-91B1-4A0851BD0D64}</ProjectGuid>
         <OutputType>Library</OutputType>
         <AppDesignerFolder>Properties</AppDesignerFolder>
-        <RootNamespace>SetSpeedShortcuts</RootNamespace>
-        <AssemblyName>SetSpeedShortcuts</AssemblyName>
+        <RootNamespace>QuickChart</RootNamespace>
+        <AssemblyName>QuickChart</AssemblyName>
         <TargetFrameworkVersion>v4.8.1</TargetFrameworkVersion>
         <FileAlignment>512</FileAlignment>
         <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -34,7 +34,7 @@
         <WarningLevel>4</WarningLevel>
     </PropertyGroup>
     <PropertyGroup>
-      <PostBuildEvent>copy "E:\dev_github\SetSpeedShortcuts\SetSpeedShortcuts\bin\Debug\SetSpeedShortcuts.dll" "C:\Program Files (x86)\Steam\steamapps\common\A Dance of Fire and Ice\Mods\SetSpeedShortcuts\SetSpeedShortcuts.dll"
+      <PostBuildEvent>copy "$(TargetPath)" "C:\Program Files (x86)\Steam\steamapps\common\A Dance of Fire and Ice\Mods\QuickChart\$(TargetFileName)"
  start "" "steam://rungameid/977950"</PostBuildEvent>
     </PropertyGroup>
     <ItemGroup>
@@ -643,7 +643,7 @@
         </Reference>
     </ItemGroup>
     <ItemGroup>
-        <Compile Include="InsertFloatFloorPatch.cs" />
+        <Compile Include="Patch.cs" />
         <Compile Include="Main.cs" />
         <Compile Include="Properties\AssemblyInfo.cs"/>
         <Compile Include="Settings.cs" />
