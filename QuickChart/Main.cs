@@ -206,7 +206,7 @@ namespace QuickChart {
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     bool prevAutoTick = _autoSetCountdownTicks;
-                    _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, GetTranslation("카운트다운 틱 자동 설정", "Scale Position Track by Pause duration"));
+                    _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, GetTranslation("카운트다운 틱 자동 설정", "Auto-set Countdown Ticks"));
                     if (prevAutoTick != _autoSetCountdownTicks) _settings.AutoSetCountdownTicks = _autoSetCountdownTicks;
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
@@ -277,12 +277,12 @@ namespace QuickChart {
             decimal totalBeats = tileBeats + (decimal)duration;
 
             if (IsFloorRelativeAngle360(floorID)) {
-                data["countdownTicks"] = 0;
+                totalBeats -= 1;
             }
             
-            if (totalBeats >= 4m && totalBeats < 5m && delta >= 0) {
+            if (totalBeats >= 4m && delta >= 0) {
                 data["countdownTicks"] = 4;
-            } else if (totalBeats >= 3m && totalBeats < 4m && delta < 0) {
+            } else if (totalBeats < 4m && delta < 0) {
                 data["countdownTicks"] = 0;
             }
         }
@@ -351,7 +351,7 @@ namespace QuickChart {
 
             editor.ApplyEventsToFloors();
             editor.levelEventsPanel.ShowTabsForFloor(id);
-            RemoveTrashUndos();
+            RemoveTrashUndos(3); 
         }
 
         public static void InsertPositionTrack(int floorID) {
@@ -513,10 +513,14 @@ namespace QuickChart {
             return isCtrlPressed == ctrl && isAltPressed == alt && isShiftPressed == shift;
         }
         
-        private static void RemoveTrashUndos() {
+        private static void RemoveTrashUndos(int amount = 2) {
             var editor = scnEditor.instance;
-            if(editor.undoStates.Count >= 2) editor.undoStates.RemoveRange(editor.undoStates.Count - 2, 2);
-            else if(editor.undoStates.Count > 0) editor.undoStates.RemoveAt(editor.undoStates.Count - 1);
+            int count = editor.undoStates.Count;
+            if (count >= amount) {
+                editor.undoStates.RemoveRange(count - amount, amount);
+            } else if (count > 0) {
+                editor.undoStates.RemoveAt(count - 1);
+            }
         }
     }
 }
