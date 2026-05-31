@@ -1,16 +1,51 @@
 # QuickChart
-## 소개 / Introduction
 
-에디터에서 **속도 설정** 이벤트를 단축키로 빠르게 조절합니다.
+게임 A Dance of Fire and Ice의 모드입니다.
 
-Adjust **Set Speed** faster with shortcuts in the editor.
+## 소개
 
-## 기능 / Features
+에디팅에 관한 여러 편의 기능을 제공합니다.
 
-타일을 선택한 상태에서 다음 단축키를 사용할 수 있습니다 / Select a tile and press
-- Alt + ↑ : Speed x2
-- Alt + ↓ : Speed x0.5
+단축키를 통해 채보 제작 시간을 줄입니다.
 
-속도 설정이 BPM과 승수가 선택되지 않은 상태로 만들어지는데 저장하면 승수로 바뀝니다.
+## 기능
 
-Speed Type looks unselected, but it changes to 'Multiplier' after saving.
+### 비트 일시정지
+
+일시정지 설치 시 다음 타일에 길 위치를, 현재 타일에 길 이동을 자동으로 설치합니다.
+
+길 위치 이동 단위와 길 이동 가감속을 설정할 수 있습니다.
+
+### 단축키
+
+타일을 선택한 상태에서 다음 단축키를 사용할 수 있습니다.
+
+| 단축키 | 기능 |
+| --- | --- |
+| **Alt + ↑/↓** | 현재 타일 BPM x2/x0.5 |
+| **Alt + Shift + ↑/↓** | 설정한 BPM 변화량만큼 BPM 미세 조정 (변속 차팅할 때 유용합니다) |
+| **Ctrl + ↑/↓** | 현재 타일에 일시정지 1비트 증가/감소<br>
+
+### 레거시 일시정지 최신화
+
+v3.0.0 업데이트로 유턴 타일에서의 일시정지의 비트 수를 기존과 같은 박자를 유지하려면 +1 해야 합니다.
+
+legacyPause 옵션이 추가되었는데, legacyPause가 켜져있다면 예전 방식대로, 꺼져 있다면 새 로직처럼 작동합니다.
+
+**버튼**
+
+* **↑:** 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다.
+* **↓:** 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)
+
+legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacyPause를 끄는 현상이 있어서 만들었습니다.
+
+## 설치 방법
+
+[Release](https://github.com/TeoooKR/QuickChart/releases/tag/2.0.0)에서 zip 파일을 다운로드할 수 있습니다.
+
+모드 설치 방법은 [모드 가이드](https://adof.ai/mod)를 참고해주세요.
+
+## 문의
+
+discord: `teoadofai` or [https://www.youtube.com/@%ED%85%8C%EC%98%A4](유튜브)
+ 
