@@ -193,7 +193,7 @@ namespace QuickChart {
                     
             bool prevPause = _pauseShortcutEnabled;
             string pauseShortcutStr = _swapShortcuts ? "(Alt+↑/↓)" : "(Ctrl+↑/↓)";
-            _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, GetTranslation("비트 일시정지 단축키 활성화 ", "Enable Pause Shortcut ") + pauseShortcutStr);
+            _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, GetTranslation("비트 일시정지 단축키 활성화", "Enable Pause Shortcut") + pauseShortcutStr);
             if (prevPause != _pauseShortcutEnabled) _settings.PauseShortcutEnabled = _pauseShortcutEnabled;
                     GUI.enabled = _pauseShortcutEnabled;
                     GUILayout.BeginHorizontal();
@@ -211,6 +211,32 @@ namespace QuickChart {
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
                     GUILayout.EndVertical();
+            
+            GUILayout.Space(32);
+            GUILayout.Label("레거시 일시정지 최신화");
+            if (!ADOBase.isEditingLevel) {
+                GUILayout.Label("현재 상태: 레벨 에디터에 있지 않음.");
+            } else {
+                if (ADOBase.editor.levelData.legacyPause) {
+                    GUILayout.Label("현재 상태: 레거시 일시정지\n버튼을 클릭하면 최신 상태로 변경됩니다.");
+                    GUIStyle redLabelStyle = new GUIStyle(GUI.skin.label);
+                    redLabelStyle.normal.textColor = new Color(0.86f, 0.31f, 0.31f);
+                } else {
+                    GUILayout.Label("현재 상태: 최신");
+                }
+                GUILayout.BeginHorizontal();
+                if (GUILayout.Button("↑", GUILayout.Width(64), GUILayout.Height(32))) {
+                    ConvertLegacyPause(false);
+                }
+                if (GUILayout.Button("↓", GUILayout.Width(64), GUILayout.Height(32))) {
+                    ConvertLegacyPause(true);
+                }
+                GUILayout.EndHorizontal();
+            }
+            
+            
+            
+
         }
 
         private static void OnSaveGUI(UnityModManager.ModEntry modEntry) {
@@ -521,6 +547,32 @@ namespace QuickChart {
             } else if (count > 0) {
                 editor.undoStates.RemoveAt(count - 1);
             }
+        }
+        
+        private static void ConvertLegacyPause(bool isDown) {
+            scnEditor editor = ADOBase.editor;
+            var angleData = editor.levelData.angleData;
+            int tiles = angleData.Count;
+            List<LevelEvent> pause;
+            object duration;
+            for (int i = 0; i < tiles; i++) {
+                if (i + 1 == angleData.Count) {
+                    break; }
+                if (Mathf.Approximately(angleData[i + 1] - angleData[i], 180) || Mathf.Approximately(angleData[i + 1] - angleData[i], -180)) {
+                    pause = editor.GetFloorEvents(i + 1, LevelEventType.Pause);
+                    if (pause.Count > 0) {
+                        Logger.Log((i+1).ToString());
+                        float currentDuration = Convert.ToSingle(pause[0].GetData()["duration"]);
+                        decimal preciseCalc = isDown ? (decimal)currentDuration - 1m : (decimal)currentDuration + 1m;
+                        pause[0].GetData()["duration"] = (float)preciseCalc;
+                        var selectedPause = editor.GetSelectedFloorEvents(LevelEventType.Pause);
+                        if (editor.GetSelectedFloorEvents(LevelEventType.Pause).Count > 0) {
+                            editor.levelEventsPanel.UpdatePropertyText(selectedPause[0], "duration");
+                        }
+                    }
+                }
+            }
+            editor.levelData.legacyPause = false;
         }
     }
 }
