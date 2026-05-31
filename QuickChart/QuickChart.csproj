@@ -33,6 +33,9 @@
         <ErrorReport>prompt</ErrorReport>
         <WarningLevel>4</WarningLevel>
     </PropertyGroup>
+    <PropertyGroup>
+      <PostBuildEvent>xcopy "E:\dev_github\QuickChart\QuickChart\bin\Debug\QuickChart.dll" "C:\Program Files (x86)\Steam\steamapps\common\A Dance of Fire and Ice\Mods\QuickChart\" /Y /I</PostBuildEvent>
+    </PropertyGroup>
     <ItemGroup>
         <Reference Include="0Harmony">
           <HintPath>C:\Program Files (x86)\Steam\steamapps\common\A Dance of Fire and Ice\A Dance of Fire and Ice_Data\Managed\UnityModManager\0Harmony.dll</HintPath>

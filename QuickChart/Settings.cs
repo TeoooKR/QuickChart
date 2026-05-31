@@ -17,7 +17,7 @@ namespace QuickChart {
             public float BpmDelta = 1f;
 
         public bool PauseShortcutEnabled = true;
-            public bool AdjustPositionWithPause = true;
+            public bool AdjustPositionWithPause = false;
             public bool AutoSetCountdownTicks = true;
 
         public override void Save(UnityModManager.ModEntry modEntry) {
