@@ -20,6 +20,7 @@ namespace QuickChart {
         
         private static bool _isKorean = true;
         private static bool _swapShortcuts;
+        private static string _legacyPauseResultStr = "";
 
         readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
             BindingFlags.NonPublic | BindingFlags.Instance);
@@ -72,11 +73,6 @@ namespace QuickChart {
             modEntry.OnUpdate = OnUpdate;
         }
 
-        private static string GetTranslation(string kr, string en)
-        {
-            return _isKorean ? kr : en;
-        }
-
         private static bool OnToggle(UnityModManager.ModEntry modEntry, bool value) {
             _isEnabled = value;
             if (value) {
@@ -88,6 +84,10 @@ namespace QuickChart {
             return true;
         }
 
+        private static string GetTranslation(string kr, string en) {
+            return _isKorean ? kr : en;
+        }
+        
         private static void OnGUI(UnityModManager.ModEntry modEntry) {
             GUILayout.BeginVertical();
 
@@ -155,7 +155,6 @@ namespace QuickChart {
                             GUI.enabled = _autoInsertMoveTrack;
                             
                             GUILayout.Space(15);
-                            
                             GUILayout.Label(GetTranslation("함수", "Function"));
                             int nextFuncIdx = GUILayout.SelectionGrid(_easeFuncIdx, _easingFunctions, 4);
                             if (nextFuncIdx != _easeFuncIdx) {
@@ -211,32 +210,67 @@ namespace QuickChart {
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
                     GUILayout.EndVertical();
-            
-            GUILayout.Space(32);
-            GUILayout.Label("레거시 일시정지 최신화");
-            if (!ADOBase.isEditingLevel) {
-                GUILayout.Label("현재 상태: 레벨 에디터에 있지 않음.");
-            } else {
-                if (ADOBase.editor.levelData.legacyPause) {
-                    GUILayout.Label("현재 상태: 레거시 일시정지\n버튼을 클릭하면 최신 상태로 변경됩니다.");
-                    GUIStyle redLabelStyle = new GUIStyle(GUI.skin.label);
-                    redLabelStyle.normal.textColor = new Color(0.86f, 0.31f, 0.31f);
-                } else {
-                    GUILayout.Label("현재 상태: 최신");
-                }
-                GUILayout.BeginHorizontal();
-                if (GUILayout.Button("↑", GUILayout.Width(64), GUILayout.Height(32))) {
-                    ConvertLegacyPause(false);
-                }
-                if (GUILayout.Button("↓", GUILayout.Width(64), GUILayout.Height(32))) {
-                    ConvertLegacyPause(true);
-                }
-                GUILayout.EndHorizontal();
-            }
-            
-            
-            
+                    GUILayout.Space(16);
 
+                    
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(16);
+            GUILayout.Label(GetTranslation("<b>레거시 일시정지 최신화</b>", "<b>Convert Legacy Pause</b>"));
+            GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUILayout.Label("<color=#888888><size=12>" +
+                                    GetTranslation(
+                                        "v3.0.0 업데이트로 유턴 타일에서의 일시정지의 비트 수를 기존과 같은 박자를 유지하려면 +1 해야 합니다." +
+                                        "\nlegacyPause 옵션이 추가되었는데, legacyPause가 켜져있다면 예전 방식대로, 꺼져 있다면 새 로직처럼 작동합니다. 아래에서 현재 레벨의 legacyPause 여부를 확인할 수 있습니다." +
+                                        "\n" +
+                                        "\n버튼 기능" +
+                                        "\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다." +
+                                        "\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)" +
+                                        "\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다." +
+                                        "\n" +
+                                        "\nNote: legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacyPause를 끄는 현상이 있어서 만들었습니다.",
+                                        
+                                        "After the v3.0.0 update, you need to add +1 to the duration of pause which is on U-Turn tiles to keep the same timing as before." +
+                                        "\nA legacyPause option has been added. if it's on, it works the old way, if it's off, it works the new way. You can check the status of legacyPause below." +
+                                        "\n" +
+                                        "\nButtons" +
+                                        "\n  - ↑ (+1): Increases the pause duration on the U-Turn tile." +
+                                        "\n  - ↓ (-1): Decreases the pause duration on the U-Turn tile. (Use this if you mistake)" +
+                                        "\n" +
+                                        "\nChanging the value with the arrow buttons will automatically turn off legacyPause." +
+                                        "\n" +
+                                        "\nNote: If you keep legacyPause on, you don't really need to change. However, this tool was made because the game sometimes turns off legacyPause."
+                                        ) + "</size></color>");
+                    GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    if (!ADOBase.isEditingLevel) {
+                        GUILayout.Label(GetTranslation("현재 레벨 에디터에 있지 않습니다.", "Not currently in the level editor."));
+                    } else {
+                        GUILayout.BeginVertical();
+                        if (ADOBase.editor.levelData.legacyPause) {
+                            GUILayout.Label(GetTranslation(
+                                "legacyPause: 켜짐\n버튼을 클릭하면 '꺼짐'으로 변경됩니다.", 
+                                "legacyPause: on\nThis turns off when clicking the buttons."
+                            ));
+                        } else {
+                            GUILayout.Label(GetTranslation("legacyPause: 꺼짐 (최신)", "legacyPause: off (Latest)"));
+                        }
+                        GUILayout.BeginHorizontal();
+                        if (GUILayout.Button("↑", GUILayout.Width(64), GUILayout.Height(32))) {
+                            ConvertLegacyPause(false);
+                        }
+                        if (GUILayout.Button("↓", GUILayout.Width(64), GUILayout.Height(32))) {
+                            ConvertLegacyPause(true);
+                        }
+                        GUILayout.EndHorizontal();
+                        if (!string.IsNullOrEmpty(_legacyPauseResultStr)) {
+                            GUILayout.Label(_legacyPauseResultStr);
+                        }
+                        GUILayout.EndVertical(); 
+                    }
+                    GUILayout.EndHorizontal();            
         }
 
         private static void OnSaveGUI(UnityModManager.ModEntry modEntry) {
@@ -553,26 +587,36 @@ namespace QuickChart {
             scnEditor editor = ADOBase.editor;
             var angleData = editor.levelData.angleData;
             int tiles = angleData.Count;
-            List<LevelEvent> pause;
-            object duration;
-            for (int i = 0; i < tiles; i++) {
-                if (i + 1 == angleData.Count) {
-                    break; }
-                if (Mathf.Approximately(angleData[i + 1] - angleData[i], 180) || Mathf.Approximately(angleData[i + 1] - angleData[i], -180)) {
-                    pause = editor.GetFloorEvents(i + 1, LevelEventType.Pause);
-                    if (pause.Count > 0) {
-                        Logger.Log((i+1).ToString());
-                        float currentDuration = Convert.ToSingle(pause[0].GetData()["duration"]);
+            List<int> changedTiles = new List<int>();
+            
+            editor.SaveState();
+
+            for (int i = 0; i < tiles - 1; i++) {
+                if (Mathf.Approximately(Mathf.Abs(angleData[i + 1] - angleData[i]), 180f)) {
+                    var pauseEvents = editor.GetFloorEvents(i + 1, LevelEventType.Pause);
+            
+                    if (pauseEvents != null && pauseEvents.Count > 0) {
+                        changedTiles.Add(i + 1);
+                
+                        float currentDuration = Convert.ToSingle(pauseEvents[0].GetData()["duration"]);
                         decimal preciseCalc = isDown ? (decimal)currentDuration - 1m : (decimal)currentDuration + 1m;
-                        pause[0].GetData()["duration"] = (float)preciseCalc;
-                        var selectedPause = editor.GetSelectedFloorEvents(LevelEventType.Pause);
-                        if (editor.GetSelectedFloorEvents(LevelEventType.Pause).Count > 0) {
-                            editor.levelEventsPanel.UpdatePropertyText(selectedPause[0], "duration");
+                        pauseEvents[0].GetData()["duration"] = (float)preciseCalc;
+
+                        if (editor.selectedFloors.Count > 0 && editor.selectedFloors[0].seqID == i + 1) {
+                            editor.levelEventsPanel.UpdatePropertyText(pauseEvents[0], "duration");
                         }
                     }
                 }
             }
+
             editor.levelData.legacyPause = false;
+
+            if (changedTiles.Count > 0) {
+                _legacyPauseResultStr = GetTranslation($"{changedTiles.Count}개 변경!", $"{changedTiles.Count} tiles changed!") + $"({string.Join(", ", changedTiles)})";
+            } else {
+                RemoveTrashUndos(1);
+                _legacyPauseResultStr = GetTranslation("0개 변경!", "0 tiles changed!");
+            }
         }
     }
 }
