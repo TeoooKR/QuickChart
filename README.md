@@ -47,5 +47,5 @@ legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacy
 
 ## 문의
 
-discord: `teoadofai` or [https://www.youtube.com/@%ED%85%8C%EC%98%A4](유튜브)
+discord: `teoadofai` 또는 [유튜브](https://www.youtube.com/@%ED%85%8C%EC%98%A4)
  
