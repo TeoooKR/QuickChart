@@ -4,7 +4,9 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using ADOFAI;
+using ADOFAI.Editor;
 using HarmonyLib;
+using UnityEngine;
 using UnityModManagerNet;
 
 namespace QuickChart {
@@ -31,6 +33,15 @@ namespace QuickChart {
             "MoveCameraToFloor", 
             BindingFlags.NonPublic | BindingFlags.Instance
         );
+        
+        readonly private static MethodInfo CopyEventMethod = typeof(scnEditor).GetMethod(
+            "CopyEvent",
+            BindingFlags.NonPublic | BindingFlags.Instance,
+            null,
+            new Type[] { typeof(LevelEvent), typeof(int) },
+            null
+        );
+
         
         [HarmonyPatch(typeof(scnEditor), "InsertFloatFloor")]
         public static class InsertFloatFloorPatch {
@@ -93,10 +104,8 @@ namespace QuickChart {
 
         [HarmonyPatch(typeof(scnEditor), "PasteFloors")]
         public static class PasteFloorPatch {
-            public static bool Prefix(scnEditor __instance) {
-                if ((bool) FloorPointsBackwardsMethod.Invoke(__instance, new object[] {
-                        ((scnEditor.FloorData) __instance.clipboard[0]).floatDirection
-                    })) {
+            public static bool Prefix(scnEditor __instance, bool alsoPasteDecorations, ref bool ___refreshBgSprites, ref bool ___refreshDecSprites) {
+                if (Main._allowBackwardPaste && (bool) FloorPointsBackwardsMethod.Invoke(__instance, new object[] { ((scnEditor.FloorData) __instance.clipboard[0]).floatDirection })) {
                     Main.Logger.Log("반대야!");
                     List<int> intList = new List<int>();
 
@@ -117,6 +126,27 @@ namespace QuickChart {
                             ++seqId;
                             intList.Add(seqId);
 
+                            if (levelEventData.Any<LevelEvent>())
+                            {
+                                foreach (LevelEvent levelEvent in levelEventData)
+                                {
+                                    LevelEvent copiedEvent = (LevelEvent)CopyEventMethod.Invoke(__instance, new object[] { levelEvent, seqId });
+                                    __instance.events.Add(copiedEvent);
+                                    if (__instance.EventHasBackgroundSprite(levelEvent))
+                                        ___refreshBgSprites = true;
+                                    if (levelEvent.IsDecoration)
+                                        ___refreshDecSprites = true;
+                                }
+                            }
+                            if (alsoPasteDecorations)
+                            {
+                                foreach (LevelEvent attachedDecoration in floorData.attachedDecorations)
+                                {
+                                    LevelEvent copiedDeco = (LevelEvent)CopyEventMethod.Invoke(__instance, new object[] { attachedDecoration, seqId });
+                                    __instance.AddDecoration(copiedDeco);
+                                    ___refreshDecSprites = true;
+                                }
+                            }
                         }
                     }
 
@@ -140,6 +170,14 @@ namespace QuickChart {
                     return false;
                 }
                 return true;
+            }
+        }
+        
+        
+        [HarmonyPatch(typeof(scnEditor), "RegisterKeybinds")]
+        public static class RegisterKeybindsPatch {
+            public static void Postfix(scnEditor __instance, EditorKeybindManager ___keybindManager) {
+                if (Main._disableMovePageShortcuts) Main.SetMovePageShortcuts(___keybindManager, false);
             }
         }
     }

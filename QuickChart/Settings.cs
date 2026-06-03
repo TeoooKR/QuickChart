@@ -20,6 +20,9 @@ namespace QuickChart {
             public bool AdjustPositionWithPause = false;
             public bool AutoSetCountdownTicks = true;
 
+        public bool AllowBackwardPaste = true;
+        public bool DisableMovePageShortcuts = false;
+        
         public override void Save(UnityModManager.ModEntry modEntry) {
             Save(this, modEntry);
         }

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using ADOFAI;
+using ADOFAI.Editor;
+using ADOFAI.Editor.Actions;
 using HarmonyLib;
 using UnityModManagerNet;
 using UnityEngine;
@@ -25,6 +27,10 @@ namespace QuickChart {
         readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
             BindingFlags.NonPublic | BindingFlags.Instance);
         
+        readonly private static MethodInfo RegisterKeybindsMethod = typeof(scnEditor).GetMethod("RegisterKeybinds",
+            BindingFlags.NonPublic | BindingFlags.Instance);
+
+        
         public static bool _autoInsertPositionTrack = true;
             private static string _positionTrackUnitStr = "1";
             private static float _positionTrackUnit = 1f;
@@ -43,6 +49,11 @@ namespace QuickChart {
         private static bool _pauseShortcutEnabled = true;
             private static bool _adjustPositionTrackWithPause = true;
             private static bool _autoSetCountdownTicks = true;
+            
+        public static bool _allowBackwardPaste = true;
+        public static bool _disableMovePageShortcuts = true;
+
+        
 
         public static void Setup(UnityModManager.ModEntry modEntry) {
             Logger = modEntry.Logger;
@@ -67,6 +78,9 @@ namespace QuickChart {
                 _adjustPositionTrackWithPause = _settings.AdjustPositionWithPause;
                 _autoSetCountdownTicks = _settings.AutoSetCountdownTicks;
 
+            _allowBackwardPaste = _settings.AllowBackwardPaste;
+            _disableMovePageShortcuts = _settings.DisableMovePageShortcuts;
+            
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
@@ -210,8 +224,23 @@ namespace QuickChart {
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
                     GUILayout.EndVertical();
-                    GUILayout.Space(16);
+                    
+                    
+            bool prevAllowBackward = _allowBackwardPaste;
+            _allowBackwardPaste = GUILayout.Toggle(_allowBackwardPaste, GetTranslation("역방향 타일 붙여넣기 허용", "Allow Paste Backward Tiles"));
+            if (prevAllowBackward != _allowBackwardPaste) _settings.AllowBackwardPaste = _allowBackwardPaste;
+    
+            bool prevDisableMovePage = _disableMovePageShortcuts;
+            _disableMovePageShortcuts = GUILayout.Toggle(_disableMovePageShortcuts, GetTranslation("대괄호([, ]) 페이지 이동 단축키 비활성화", "Disable Move Page Shortcuts ([, ])"));
+            if (prevDisableMovePage != _disableMovePageShortcuts) {
+                _settings.DisableMovePageShortcuts = _disableMovePageShortcuts;
 
+                var keybindManagerField = AccessTools.Field(typeof(scnEditor), "keybindManager");
+                var keybindManager = keybindManagerField.GetValue(ADOBase.editor) as EditorKeybindManager;
+
+                SetMovePageShortcuts(keybindManager, !_disableMovePageShortcuts);
+            }
+                    
                     
             GUILayout.BeginHorizontal();
             GUILayout.Space(16);
@@ -270,7 +299,21 @@ namespace QuickChart {
                         }
                         GUILayout.EndVertical(); 
                     }
-                    GUILayout.EndHorizontal();            
+                    GUILayout.EndHorizontal(); 
+        }
+        
+        public static void SetMovePageShortcuts(EditorKeybindManager manager, bool register) {
+            if (register) {
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.LeftBracket), (EditorAction) new ShowPreviousEventPageEditorAction());
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.RightBracket), (EditorAction) new ShowNextEventPageEditorAction());
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.LeftBracket), (EditorAction) new ShowFirstEventPageEditorAction());
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.RightBracket), (EditorAction) new ShowLastEventPageEditorAction());
+            } else {
+                manager.UnregisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.LeftBracket));
+                manager.UnregisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.RightBracket));
+                manager.UnregisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.LeftBracket));
+                manager.UnregisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.RightBracket));
+            }
         }
 
         private static void OnSaveGUI(UnityModManager.ModEntry modEntry) {
