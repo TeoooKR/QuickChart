@@ -27,10 +27,6 @@ namespace QuickChart {
         readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
             BindingFlags.NonPublic | BindingFlags.Instance);
         
-        readonly private static MethodInfo RegisterKeybindsMethod = typeof(scnEditor).GetMethod("RegisterKeybinds",
-            BindingFlags.NonPublic | BindingFlags.Instance);
-
-        
         public static bool _autoInsertPositionTrack = true;
             private static string _positionTrackUnitStr = "1";
             private static float _positionTrackUnit = 1f;
@@ -304,10 +300,10 @@ namespace QuickChart {
         
         public static void SetMovePageShortcuts(EditorKeybindManager manager, bool register) {
             if (register) {
-                manager.RegisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.LeftBracket), (EditorAction) new ShowPreviousEventPageEditorAction());
-                manager.RegisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.RightBracket), (EditorAction) new ShowNextEventPageEditorAction());
-                manager.RegisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.LeftBracket), (EditorAction) new ShowFirstEventPageEditorAction());
-                manager.RegisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.RightBracket), (EditorAction) new ShowLastEventPageEditorAction());
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.LeftBracket), new ShowPreviousEventPageEditorAction());
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.RightBracket), new ShowNextEventPageEditorAction());
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.LeftBracket), new ShowFirstEventPageEditorAction());
+                manager.RegisterKeybind(new EditorKeybind(KeyModifier.Shift, KeyCode.RightBracket), new ShowLastEventPageEditorAction());
             } else {
                 manager.UnregisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.LeftBracket));
                 manager.UnregisterKeybind(new EditorKeybind(KeyModifier.None, KeyCode.RightBracket));

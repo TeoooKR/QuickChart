@@ -2,12 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Reflection.Emit;
 using ADOFAI;
 using ADOFAI.Editor;
 using HarmonyLib;
-using UnityEngine;
-using UnityModManagerNet;
 
 namespace QuickChart {
     public static class Patch {
@@ -15,7 +12,7 @@ namespace QuickChart {
             "FloorPointsBackwards",
             BindingFlags.NonPublic | BindingFlags.Instance,
             null,
-            new Type[] { typeof(float) },
+            new [] { typeof(float) },
             null
         );
         
@@ -38,7 +35,7 @@ namespace QuickChart {
             "CopyEvent",
             BindingFlags.NonPublic | BindingFlags.Instance,
             null,
-            new Type[] { typeof(LevelEvent), typeof(int) },
+            new [] { typeof(LevelEvent), typeof(int) },
             null
         );
 
@@ -78,7 +75,7 @@ namespace QuickChart {
                             }
                         
                             decimal tileBeats = (decimal)Main.GetFloorRelativeAngle(floorID) / 180m;
-                            float pauseDuration = System.Convert.ToSingle(pauseEventsOnCurrent[0].GetData()["duration"]);
+                            float pauseDuration = Convert.ToSingle(pauseEventsOnCurrent[0].GetData()["duration"]);
                             mtData["duration"] = (float)(tileBeats + (decimal)pauseDuration);
                         }
                     }
@@ -126,7 +123,7 @@ namespace QuickChart {
                             ++seqId;
                             intList.Add(seqId);
 
-                            if (levelEventData.Any<LevelEvent>())
+                            if (levelEventData.Any())
                             {
                                 foreach (LevelEvent levelEvent in levelEventData)
                                 {
