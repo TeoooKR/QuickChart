@@ -1,0 +1,10 @@
+{
+  "Id": "QuickChart",
+  "DisplayName": "QuickChart",
+  "Author": "테오",
+  "Version": "2.0.0",
+  "AssemblyName": "QuickChart.dll",
+  "EntryMethod": "QuickChart.Main.Setup",
+  "HomePage": "https://github.com/TeoooKR/QuickChart",
+  "Repository": ""
+}
