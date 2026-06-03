@@ -573,7 +573,7 @@ namespace QuickChart {
             return isCtrlPressed == ctrl && isAltPressed == alt && isShiftPressed == shift;
         }
         
-        private static void RemoveTrashUndos(int amount = 2) {
+        public static void RemoveTrashUndos(int amount = 2) {
             var editor = scnEditor.instance;
             int count = editor.undoStates.Count;
             if (count >= amount) {
