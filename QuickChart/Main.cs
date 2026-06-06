@@ -21,7 +21,6 @@ namespace QuickChart {
         static int _lastBpmDirection;
         
         private static bool _isKorean = true;
-        private static bool _swapShortcuts;
         private static string _legacyPauseResultStr = "";
 
         readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
@@ -38,6 +37,8 @@ namespace QuickChart {
                 readonly private static string[] _easingModesFlash = { "-", "In", "Out", "In-Out" };
                 readonly private static string[] _easingFunctions = { "Linear", "Sine", "Quad", "Cubic", "Quart", "Quint", "Expo", "Circ", "Elastic", "Back", "Bounce", "Flash" };
                 
+        private static bool _swapShortcuts;
+
         private static bool _speedShortcutEnabled = true;
             private static string _bpmDeltaStr = "1";
             private static float _bpmDelta = 1f;
@@ -56,7 +57,6 @@ namespace QuickChart {
             _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
 
             _isKorean = _settings.IsKorean;
-            _swapShortcuts = _settings.SwapShortcuts;
 
             _autoInsertPositionTrack = _settings.AutoInsertPositionTrack;
                 _positionTrackUnit = _settings.PositionTrackUnit;
@@ -66,6 +66,8 @@ namespace QuickChart {
                 _easeFuncIdx = _settings.EaseFunctionIndex;
                 _easeModeIdx = _settings.EaseModeIndex;
                 
+            _swapShortcuts = _settings.SwapShortcuts;
+
             _speedShortcutEnabled = _settings.SpeedShortcutEnabled;
                 _bpmDelta = _settings.BpmDelta;
                 _bpmDeltaStr = _bpmDelta.ToString(CultureInfo.InvariantCulture);
@@ -112,13 +114,7 @@ namespace QuickChart {
             }
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
-
-            bool prevSwap = _swapShortcuts;
-            _swapShortcuts = GUILayout.Toggle(_swapShortcuts, GetTranslation("Ctrl, Alt 단축키 반전", "Swap Ctrl and Alt"));
-            if (prevSwap != _swapShortcuts) _settings.SwapShortcuts = _swapShortcuts;
-
-            GUILayout.Space(10f);
-
+            
             bool prevAutoPos = _autoInsertPositionTrack;
             _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, GetTranslation("일시정지 설치 시 길 위치 자동 설치", "Auto-insert Position Track on Pause"));
             if (prevAutoPos != _autoInsertPositionTrack) _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
@@ -176,6 +172,10 @@ namespace QuickChart {
                             GUILayout.EndHorizontal();
                             GUI.enabled = true;
                             
+            bool prevSwap = _swapShortcuts;
+            _swapShortcuts = GUILayout.Toggle(_swapShortcuts, GetTranslation("Ctrl, Alt 단축키 반전", "Swap Ctrl and Alt"));
+            if (prevSwap != _swapShortcuts) _settings.SwapShortcuts = _swapShortcuts;   
+            GUILayout.Space(4);
                             
             bool prevSpeed = _speedShortcutEnabled;
             string speedShortcutStr = _swapShortcuts ? "(Ctrl+↑/↓, Ctrl+Shift+↑/↓)" : "(Alt+↑/↓, Alt+Shift+↑/↓)";
@@ -323,7 +323,17 @@ namespace QuickChart {
             bool pauseAlt = _swapShortcuts;
             bool speedCtrl = _swapShortcuts;
             bool speedAlt = !_swapShortcuts;
-
+            //
+            // if (CheckShortcut(KeyCode.F4)) {
+            //     Logger.Log($"specialColor1: ${ADOBase.editor.selectedFloors[0].specialColor1}");
+            //     Logger.Log($"specialColor2: ${ADOBase.editor.selectedFloors[0].specialColor2}");
+            //     Logger.Log($"specialColorPulse: ${ADOBase.editor.selectedFloors[0].specialColorPulse}");
+            //     Logger.Log($"길 색상 유형: ${ADOBase.editor.selectedFloors[0].specialColorType}");
+            //
+            //     Logger.Log($"길 스타일: ${ADOBase.editor.selectedFloors[0].initialTrackStyle}");
+            //     Logger.Log($"글로우 강도: ${ADOBase.editor.selectedFloors[0].glowMultiplier * 100}");
+            //
+            // }
             if (_pauseShortcutEnabled) {
                 if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(1);
                 if (CheckShortcut(KeyCode.DownArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(-1);
