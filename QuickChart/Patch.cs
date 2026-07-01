@@ -14,35 +14,39 @@ namespace QuickChart {
             "FloorPointsBackwards",
             BindingFlags.NonPublic | BindingFlags.Instance,
             null,
-            new [] { typeof(float) },
+            new[] {
+                typeof(float)
+            },
             null
         );
-        
+
         readonly private static MethodInfo OffsetFloorIDsInEventsMethod = typeof(scnEditor).GetMethod(
-            "OffsetFloorIDsInEvents", 
+            "OffsetFloorIDsInEvents",
             BindingFlags.NonPublic | BindingFlags.Instance
         );
 
         readonly private static MethodInfo FlashTileMethod = typeof(scnEditor).GetMethod(
-            "FlashTile", 
+            "FlashTile",
             BindingFlags.NonPublic | BindingFlags.Instance
         );
-        
+
         readonly private static MethodInfo MoveCameraToFloorMethod = typeof(scnEditor).GetMethod(
-            "MoveCameraToFloor", 
+            "MoveCameraToFloor",
             BindingFlags.NonPublic | BindingFlags.Instance
         );
-        
+
         readonly private static MethodInfo CopyEventMethod = typeof(scnEditor).GetMethod(
             "CopyEvent",
             BindingFlags.NonPublic | BindingFlags.Instance,
             null,
-            new [] { typeof(LevelEvent), typeof(int) },
+            new[] {
+                typeof(LevelEvent), typeof(int)
+            },
             null
         );
 
         readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod(
-            "AddEvent", 
+            "AddEvent",
             BindingFlags.NonPublic | BindingFlags.Instance
         );
 
@@ -79,29 +83,31 @@ namespace QuickChart {
                             if (ptList.Count > 0) {
                                 mtData["positionOffset"] = ptList[0].GetData()["positionOffset"];
                             }
-                        
-                            decimal tileBeats = (decimal)Main.GetFloorRelativeAngle(floorID) / 180m;
+
+                            decimal tileBeats = (decimal) Main.GetFloorRelativeAngle(floorID) / 180m;
                             float pauseDuration = Convert.ToSingle(pauseEventsOnCurrent[0].GetData()["duration"]);
-                            mtData["duration"] = (float)(tileBeats + (decimal)pauseDuration);
+                            mtData["duration"] = (float) (tileBeats + (decimal) pauseDuration);
                         }
                     }
                 }
 
                 if (Main._autoInsertTwirl) {
-                    decimal angle = Math.Round((decimal)Main.GetFloorRelativeAngle(floorID), 3);
+                    decimal angle = Math.Round((decimal) Main.GetFloorRelativeAngle(floorID), 3);
                     if (angle > 180m && angle != 360m) {
                         if (editor.GetFloorEvents(floorID, LevelEventType.Twirl).Count == 0) {
-                            AddEventMethod?.Invoke(editor, new object[] { floorID, LevelEventType.Twirl });
+                            AddEventMethod?.Invoke(editor, new object[] {
+                                floorID, LevelEventType.Twirl
+                            });
                         }
                     }
                 }
-            
+
                 editor.ApplyEventsToFloors();
             }
         }
 
-        [HarmonyPatch(typeof(scnEditor),"AddEvent")]
-        public static class AddEventPatch { 
+        [HarmonyPatch(typeof(scnEditor), "AddEvent")]
+        public static class AddEventPatch {
             public static void Postfix(int floorID, LevelEventType eventType) {
                 if (eventType == LevelEventType.Pause) {
                     if (Main._autoInsertPositionTrack) {
@@ -109,7 +115,7 @@ namespace QuickChart {
                     }
                     if (Main._autoInsertMoveTrack) {
                         Main.InsertMoveTrack(floorID);
-                    }    
+                    }
                 }
             }
         }
@@ -117,7 +123,9 @@ namespace QuickChart {
         [HarmonyPatch(typeof(scnEditor), "PasteFloors")]
         public static class PasteFloorPatch {
             public static bool Prefix(scnEditor __instance, bool alsoPasteDecorations, ref bool ___refreshBgSprites, ref bool ___refreshDecSprites) {
-                if (Main._allowBackwardPaste && (bool) FloorPointsBackwardsMethod.Invoke(__instance, new object[] { ((scnEditor.FloorData) __instance.clipboard[0]).floatDirection })) {
+                if (Main._allowBackwardPaste && (bool) FloorPointsBackwardsMethod.Invoke(__instance, new object[] {
+                        ((scnEditor.FloorData) __instance.clipboard[0]).floatDirection
+                    })) {
                     List<int> intList = new List<int>();
 
                     int seqId = __instance.selectedFloors[0].seqID;
@@ -137,11 +145,11 @@ namespace QuickChart {
                             ++seqId;
                             intList.Add(seqId);
 
-                            if (levelEventData.Any())
-                            {
-                                foreach (LevelEvent levelEvent in levelEventData)
-                                {
-                                    LevelEvent copiedEvent = (LevelEvent)CopyEventMethod.Invoke(__instance, new object[] { levelEvent, seqId });
+                            if (levelEventData.Any()) {
+                                foreach (LevelEvent levelEvent in levelEventData) {
+                                    LevelEvent copiedEvent = (LevelEvent) CopyEventMethod.Invoke(__instance, new object[] {
+                                        levelEvent, seqId
+                                    });
                                     __instance.events.Add(copiedEvent);
                                     if (__instance.EventHasBackgroundSprite(levelEvent))
                                         ___refreshBgSprites = true;
@@ -149,11 +157,11 @@ namespace QuickChart {
                                         ___refreshDecSprites = true;
                                 }
                             }
-                            if (alsoPasteDecorations)
-                            {
-                                foreach (LevelEvent attachedDecoration in floorData.attachedDecorations)
-                                {
-                                    LevelEvent copiedDeco = (LevelEvent)CopyEventMethod.Invoke(__instance, new object[] { attachedDecoration, seqId });
+                            if (alsoPasteDecorations) {
+                                foreach (LevelEvent attachedDecoration in floorData.attachedDecorations) {
+                                    LevelEvent copiedDeco = (LevelEvent) CopyEventMethod.Invoke(__instance, new object[] {
+                                        attachedDecoration, seqId
+                                    });
                                     __instance.AddDecoration(copiedDeco);
                                     ___refreshDecSprites = true;
                                 }
@@ -183,17 +191,17 @@ namespace QuickChart {
                 return true;
             }
         }
-        
-        
+
+
         [HarmonyPatch(typeof(scnEditor), "RegisterKeybinds")]
         public static class RegisterKeybindsPatch {
             public static void Postfix(scnEditor __instance, EditorKeybindManager ___keybindManager) {
                 if (Main._disableMovePageShortcuts) Main.SetMovePageShortcuts(___keybindManager, false);
             }
         }
-        
-        
 
-    
+
+
+
     }
 }

@@ -22,6 +22,7 @@ namespace QuickChart {
         
         private static bool _isKorean = true;
         private static string _legacyPauseResultStr = "";
+        private static string _changeAngleResultStr = "";
 
         readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
             BindingFlags.NonPublic | BindingFlags.Instance);
@@ -50,9 +51,7 @@ namespace QuickChart {
         public static bool _allowBackwardPaste = true;
         public static bool _disableMovePageShortcuts = true;
         public static bool _autoInsertTwirl = false;
-
         
-
         public static void Setup(UnityModManager.ModEntry modEntry) {
             Logger = modEntry.Logger;
             _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
@@ -243,6 +242,47 @@ namespace QuickChart {
             _autoInsertTwirl = GUILayout.Toggle(_autoInsertTwirl, GetTranslation("타일 180° 초과 시 소용돌이 자동 설치 (내각 고정)", "Auto-insert Twirl when tile angle > 180° (Always interior angle)"));
             if (prevAutoInsertTwirl != _autoInsertTwirl) _settings.AutoInsertTwirl = _autoInsertTwirl;
             
+            GUILayout.Space(8);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(16);
+            GUILayout.Label(GetTranslation("<b>각도 바꾸기</b>", "<b>Change Angle</b>"));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUILayout.Label(GetTranslation("적용할 타일 범위 (Ctrl + C): ", "Tile Range (Ctrl + C): "));
+                    _settings.ChangeAngleStartTile = GUILayout.TextField(_settings.ChangeAngleStartTile, GUILayout.Width(40));
+                    GUILayout.Label(" ~ ");
+                    _settings.ChangeAngleEndTile = GUILayout.TextField(_settings.ChangeAngleEndTile, GUILayout.Width(40));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+                    
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUILayout.Label(GetTranslation("찾을 각도: ", "Find Angle: "));
+                    _settings.ChangeAngleFind = GUILayout.TextField(_settings.ChangeAngleFind, GUILayout.Width(40));
+                    GUILayout.Label(GetTranslation(" -> 바꿀 각도: ", " -> Change Angle to: "));
+                    _settings.ChangeAngleReplace = GUILayout.TextField(_settings.ChangeAngleReplace, GUILayout.Width(40));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUI.enabled = ADOBase.isEditingLevel;
+                    if (GUILayout.Button(GetTranslation("실행", "Execute"), GUILayout.Width(100))) {
+                        ExecuteAngleChange();
+                    }
+                    if (!string.IsNullOrEmpty(_changeAngleResultStr)) {
+                        GUILayout.Label(_changeAngleResultStr);
+                    }
+                    GUI.enabled = true;
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+            
+                    
+            GUILayout.Space(8);
+
             GUILayout.BeginHorizontal();
             GUILayout.Space(16);
             GUILayout.Label(GetTranslation("<b>레거시 일시정지 최신화</b>", "<b>Convert Legacy Pause</b>"));
@@ -328,17 +368,22 @@ namespace QuickChart {
             bool pauseAlt = _swapShortcuts;
             bool speedCtrl = _swapShortcuts;
             bool speedAlt = !_swapShortcuts;
-            //
-            // if (CheckShortcut(KeyCode.F4)) {
-            //     Logger.Log($"specialColor1: ${ADOBase.editor.selectedFloors[0].specialColor1}");
-            //     Logger.Log($"specialColor2: ${ADOBase.editor.selectedFloors[0].specialColor2}");
-            //     Logger.Log($"specialColorPulse: ${ADOBase.editor.selectedFloors[0].specialColorPulse}");
-            //     Logger.Log($"길 색상 유형: ${ADOBase.editor.selectedFloors[0].specialColorType}");
-            //
-            //     Logger.Log($"길 스타일: ${ADOBase.editor.selectedFloors[0].initialTrackStyle}");
-            //     Logger.Log($"글로우 강도: ${ADOBase.editor.selectedFloors[0].glowMultiplier * 100}");
-            //
-            // }
+            
+            if (CheckShortcut(KeyCode.C, ctrl: true)) {
+                if (ADOBase.isEditingLevel && ADOBase.editor != null && ADOBase.editor.selectedFloors != null && ADOBase.editor.selectedFloors.Count > 0) {
+                    int minId = int.MaxValue;
+                    int maxId = -1;
+                    foreach (var floor in ADOBase.editor.selectedFloors) {
+                        if (floor.seqID < minId) minId = floor.seqID;
+                        if (floor.seqID > maxId) maxId = floor.seqID;
+                    }
+                    if (minId != int.MaxValue && maxId != -1) {
+                        _settings.ChangeAngleStartTile = minId.ToString();
+                        _settings.ChangeAngleEndTile = maxId.ToString();
+                    }
+                }
+            }
+
             if (_pauseShortcutEnabled) {
                 if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(1);
                 if (CheckShortcut(KeyCode.DownArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(-1);
@@ -666,10 +711,70 @@ namespace QuickChart {
             editor.levelData.legacyPause = false;
 
             if (changedTiles.Count > 0) {
-                _legacyPauseResultStr = GetTranslation($"{changedTiles.Count}개 변경!", $"{changedTiles.Count} tiles changed!") + $"({string.Join(", ", changedTiles)})";
+                _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation($"{changedTiles.Count}개 변경!", $"{changedTiles.Count} tiles changed!") + $"({string.Join(", ", changedTiles)})</color>";
             } else {
                 RemoveTrashUndos(1);
-                _legacyPauseResultStr = GetTranslation("0개 변경!", "0 tiles changed!");
+                _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
+            }
+        }
+
+        private static void ExecuteAngleChange() {
+            if (!ADOBase.isEditingLevel || ADOBase.editor == null) return;
+            
+            int maxTileIndex = ADOBase.editor.floors.Count - 1;
+            int startTile = 1;
+            int endTile = maxTileIndex - 1;
+            
+            if (!string.IsNullOrEmpty(_settings.ChangeAngleStartTile)) int.TryParse(_settings.ChangeAngleStartTile, out startTile);
+            if (!string.IsNullOrEmpty(_settings.ChangeAngleEndTile)) int.TryParse(_settings.ChangeAngleEndTile, out endTile);
+            
+            startTile = Mathf.Clamp(startTile, 1, maxTileIndex - 1);
+            endTile = Mathf.Clamp(endTile, 1, maxTileIndex - 1);
+
+            double findAngle, replaceAngle;
+            if (!double.TryParse(_settings.ChangeAngleFind, out findAngle)) {
+                return;
+            }
+            if (!double.TryParse(_settings.ChangeAngleReplace, out replaceAngle)) {
+                return;
+            }
+
+            ADOBase.editor.SaveState();
+            
+            int changedCount = 0;
+            float find = (float)findAngle;
+            float replace = (float)replaceAngle;
+            decimal targetFind = Math.Round((decimal)find, 3);
+            decimal targetReplace = Math.Round((decimal)replace, 3);
+
+            List<int> tilesToChange = new List<int>();
+            for (int i = startTile; i <= endTile; i++) {
+                decimal currentAngle = Math.Round((decimal)GetFloorRelativeAngle(i), 3);
+                if (currentAngle == targetFind) {
+                    tilesToChange.Add(i);
+                }
+            }
+
+            foreach (int i in tilesToChange) {
+                float originalAngleI = ADOBase.editor.levelData.angleData[i];
+                float dR = replace - find;
+                
+                var floor = ADOBase.editor.floors[i];
+                bool isCCW = floor.isCCW;
+                
+                float deltaA = isCCW ? dR : -dR;
+
+                ADOBase.editor.levelData.angleData[i] = originalAngleI + deltaA;
+                changedCount++;
+                // Logger.Log($"{i}: {find} -> {replace} isCCW: {isCCW})");
+            }
+
+            if (changedCount > 0) {
+                ADOBase.editor.RemakePath();
+                _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{changedCount}개 변경!", $"{changedCount} tiles changed!") + $"({string.Join(", ", tilesToChange)})</color>";
+            } else {
+                RemoveTrashUndos(1);
+                _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
             }
         }
     }
