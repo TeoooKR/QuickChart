@@ -6,6 +6,7 @@ using ADOFAI;
 using ADOFAI.Editor;
 using HarmonyLib;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace QuickChart {
     public static class Patch {
@@ -40,7 +41,11 @@ namespace QuickChart {
             null
         );
 
-        
+        readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod(
+            "AddEvent", 
+            BindingFlags.NonPublic | BindingFlags.Instance
+        );
+
         [HarmonyPatch(typeof(scnEditor), "InsertFloatFloor")]
         public static class InsertFloatFloorPatch {
             public static void Postfix() {
@@ -83,9 +88,12 @@ namespace QuickChart {
                 }
 
                 if (Main._autoInsertTwirl) {
-                    double angle = Main.GetFloorRelativeAngle(floorID);
-                    //
-                    
+                    decimal angle = Math.Round((decimal)Main.GetFloorRelativeAngle(floorID), 3);
+                    if (angle > 180m && angle != 360m) {
+                        if (editor.GetFloorEvents(floorID, LevelEventType.Twirl).Count == 0) {
+                            AddEventMethod?.Invoke(editor, new object[] { floorID, LevelEventType.Twirl });
+                        }
+                    }
                 }
             
                 editor.ApplyEventsToFloors();

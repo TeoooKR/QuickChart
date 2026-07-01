@@ -240,7 +240,7 @@ namespace QuickChart {
             }
             
             bool prevAutoInsertTwirl = _autoInsertTwirl;
-            _autoInsertTwirl = GUILayout.Toggle(_autoInsertTwirl, GetTranslation("타일 180° 초과 시 소용돌이 자동 설치", "Auto-insert Twirl when tile angle > 180°"));
+            _autoInsertTwirl = GUILayout.Toggle(_autoInsertTwirl, GetTranslation("타일 180° 초과 시 소용돌이 자동 설치 (내각 고정)", "Auto-insert Twirl when tile angle > 180° (Always interior angle)"));
             if (prevAutoInsertTwirl != _autoInsertTwirl) _settings.AutoInsertTwirl = _autoInsertTwirl;
             
             GUILayout.BeginHorizontal();
