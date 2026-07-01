@@ -23,6 +23,8 @@ namespace QuickChart {
         public bool AllowBackwardPaste = true;
         public bool DisableMovePageShortcuts = false;
         
+        public bool AutoInsertTwirl = false;
+        
         public override void Save(UnityModManager.ModEntry modEntry) {
             Save(this, modEntry);
         }

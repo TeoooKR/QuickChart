@@ -5,6 +5,7 @@ using System.Reflection;
 using ADOFAI;
 using ADOFAI.Editor;
 using HarmonyLib;
+using UnityEngine;
 
 namespace QuickChart {
     public static class Patch {
@@ -80,6 +81,12 @@ namespace QuickChart {
                         }
                     }
                 }
+
+                if (Main._autoInsertTwirl) {
+                    double angle = Main.GetFloorRelativeAngle(floorID);
+                    //
+                    
+                }
             
                 editor.ApplyEventsToFloors();
             }
@@ -103,7 +110,6 @@ namespace QuickChart {
         public static class PasteFloorPatch {
             public static bool Prefix(scnEditor __instance, bool alsoPasteDecorations, ref bool ___refreshBgSprites, ref bool ___refreshDecSprites) {
                 if (Main._allowBackwardPaste && (bool) FloorPointsBackwardsMethod.Invoke(__instance, new object[] { ((scnEditor.FloorData) __instance.clipboard[0]).floatDirection })) {
-                    Main.Logger.Log("반대야!");
                     List<int> intList = new List<int>();
 
                     int seqId = __instance.selectedFloors[0].seqID;
@@ -177,5 +183,9 @@ namespace QuickChart {
                 if (Main._disableMovePageShortcuts) Main.SetMovePageShortcuts(___keybindManager, false);
             }
         }
+        
+        
+
+    
     }
 }

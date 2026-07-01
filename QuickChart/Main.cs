@@ -49,6 +49,7 @@ namespace QuickChart {
             
         public static bool _allowBackwardPaste = true;
         public static bool _disableMovePageShortcuts = true;
+        public static bool _autoInsertTwirl = false;
 
         
 
@@ -78,6 +79,7 @@ namespace QuickChart {
 
             _allowBackwardPaste = _settings.AllowBackwardPaste;
             _disableMovePageShortcuts = _settings.DisableMovePageShortcuts;
+            _autoInsertTwirl = _settings.AutoInsertTwirl;
             
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = OnGUI;
@@ -236,8 +238,11 @@ namespace QuickChart {
 
                 SetMovePageShortcuts(keybindManager, !_disableMovePageShortcuts);
             }
-                    
-                    
+            
+            bool prevAutoInsertTwirl = _autoInsertTwirl;
+            _autoInsertTwirl = GUILayout.Toggle(_autoInsertTwirl, GetTranslation("타일 180° 초과 시 소용돌이 자동 설치", "Auto-insert Twirl when tile angle > 180°"));
+            if (prevAutoInsertTwirl != _autoInsertTwirl) _settings.AutoInsertTwirl = _autoInsertTwirl;
+            
             GUILayout.BeginHorizontal();
             GUILayout.Space(16);
             GUILayout.Label(GetTranslation("<b>레거시 일시정지 최신화</b>", "<b>Convert Legacy Pause</b>"));
