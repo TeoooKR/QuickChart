@@ -721,25 +721,20 @@ namespace QuickChart {
             if (!ADOBase.isEditingLevel || editor == null) return;
             
             int maxTileIndex = editor.floors.Count - 1;
-            int startTile = 1;
-            int endTile = maxTileIndex - 1;
-            
-            if (!string.IsNullOrEmpty(_settings.ChangeAngleStartTile)) int.TryParse(_settings.ChangeAngleStartTile, out startTile);
-            if (!string.IsNullOrEmpty(_settings.ChangeAngleEndTile)) int.TryParse(_settings.ChangeAngleEndTile, out endTile);
-            
+
+            if (string.IsNullOrEmpty(_settings.ChangeAngleStartTile) || !int.TryParse(_settings.ChangeAngleStartTile, out int startTile)) 
+                startTile = 1;
+
+            if (string.IsNullOrEmpty(_settings.ChangeAngleEndTile) || !int.TryParse(_settings.ChangeAngleEndTile, out int endTile)) 
+                endTile = maxTileIndex - 1;
+
             startTile = Mathf.Clamp(startTile, 1, maxTileIndex - 1);
             endTile = Mathf.Clamp(endTile, 1, maxTileIndex - 1);
 
-            double findAngle, replaceAngle;
-            if (!double.TryParse(_settings.ChangeAngleFind, out findAngle)) {
-                return;
-            }
-            if (!double.TryParse(_settings.ChangeAngleReplace, out replaceAngle)) {
-                return;
-            }
+            if (!double.TryParse(_settings.ChangeAngleFind, out double findAngle)) return;
+            if (!double.TryParse(_settings.ChangeAngleReplace, out double replaceAngle)) return;
 
             using (new SaveStateScope(editor)) {
-
                 int changedCount = 0;
                 float find = (float) findAngle;
                 float replace = (float) replaceAngle;
