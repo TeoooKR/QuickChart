@@ -29,7 +29,16 @@
 ### 기타
 
  * 역방향 타일 붙여넣기 허용
- * 대괄호([, ]) 페이지 이동 단축키 비활성화
+ * 대괄호([, ]) 페이지 이동 단축키 비활성화 (from TulltakMod)
+ * 타일 180° 초과 시 소용돌이 자동 설치 (내각 고정) (from TulltakMod)
+
+### 각도 바꾸기
+
+에디터에서 특정 범위의 타일 중 원하는 상대각도를 찾아 다른 각도로 일괄 변경합니다.
+
+타일 선택 후 Ctrl + C 단축키를 사용해서 범위를 설정할 수 있습니다.
+
+동타 각도를 한 번에 바꾸고 싶을 때 유용합니다.
 
 ### 레거시 일시정지 최신화
 
@@ -49,6 +58,11 @@ legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacy
 [Release](https://github.com/TeoooKR/QuickChart/releases/tag/2.0.0)에서 zip 파일을 다운로드할 수 있습니다.
 
 모드 설치 방법은 [모드 가이드](https://adof.ai/mod)를 참고해주세요.
+
+## 참고한 소스
+[TulltakMod](https://github.com/wjdgustn/TulttakMod)
+[ADOFAI Tweaks](https://github.com/PizzaLovers007/AdofaiTweaks)
+[SmartEditor](https://github.com/Jongye0l/SmartEditor)
 
 ## 문의
 
