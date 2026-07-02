@@ -60,9 +60,8 @@ legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacy
 모드 설치 방법은 [모드 가이드](https://adof.ai/mod)를 참고해주세요.
 
 ## 참고한 소스
-[TulltakMod](https://github.com/wjdgustn/TulttakMod)
-[ADOFAI Tweaks](https://github.com/PizzaLovers007/AdofaiTweaks)
-[SmartEditor](https://github.com/Jongye0l/SmartEditor)
+
+[TulltakMod](https://github.com/wjdgustn/TulttakMod), [ADOFAI Tweaks](https://github.com/PizzaLovers007/AdofaiTweaks), [SmartEditor](https://github.com/Jongye0l/SmartEditor)
 
 ## 문의
 
