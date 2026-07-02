@@ -706,6 +706,7 @@ namespace QuickChart {
                 }
 
                 editor.levelData.legacyPause = false;
+                if (changedTiles.Count > 0) editor.customLevel.ApplyEventsToFloors(editor.floors);
             }
             
             if (changedTiles.Count > 0) {
