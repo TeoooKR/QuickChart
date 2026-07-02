@@ -370,7 +370,7 @@ namespace QuickChart {
             bool speedAlt = !_swapShortcuts;
             
             if (CheckShortcut(KeyCode.C, ctrl: true)) {
-                if (ADOBase.isEditingLevel && ADOBase.editor != null && ADOBase.editor.selectedFloors != null && ADOBase.editor.selectedFloors.Count > 0) {
+                if (editor.selectedFloors != null && editor.selectedFloors.Count > 0) {
                     int minId = int.MaxValue;
                     int maxId = -1;
                     foreach (var floor in ADOBase.editor.selectedFloors) {
@@ -715,9 +715,7 @@ namespace QuickChart {
         }
 
         private static void ExecuteAngleChange() {
-            scnEditor editor = ADOBase.editor;
-
-            if (!ADOBase.isEditingLevel || editor == null) return;
+            scnEditor editor = ADOBase.editor;  
             
             int maxTileIndex = editor.floors.Count - 1;
 
