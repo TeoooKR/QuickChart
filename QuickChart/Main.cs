@@ -660,7 +660,6 @@ namespace QuickChart {
         public static double GetFloorRelativeAngle(int floorID) {
             var editor = ADOBase.editor;
             if (editor == null || floorID < 0 || floorID >= editor.floors.Count - 1) return 0;
-            ADOBase.lm.CalculateFloorAngleLengths();
             var floor = editor.floors[floorID];
             return floor.angleLength * Mathf.Rad2Deg;
         }
