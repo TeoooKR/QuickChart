@@ -185,7 +185,6 @@ namespace QuickChart {
                         __instance.floors[__instance.selectedFloors[0].seqID]
                     });
 
-                    Main.RemoveTrashUndos(1);
                     return false;
                 }
                 return true;

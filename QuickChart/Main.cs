@@ -449,74 +449,75 @@ namespace QuickChart {
         private static void HandlePause(int delta) {
             var editor = scnEditor.instance;
             if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
-            editor.SaveState();
-            int id = editor.selectedFloors[0].seqID;
-            var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
-            
-            float finalDuration;
-            bool shouldShowPanel;
 
-            if (selectedEvent == null) {
-                if (delta < 0) return;
-                AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
-                selectedEvent = editor.events[editor.events.Count - 1];
+            using (new SaveStateScope(editor)) {
+                int id = editor.selectedFloors[0].seqID;
+                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
                 
-                finalDuration = delta;
-                selectedEvent.GetData()["duration"] = finalDuration;
-                shouldShowPanel = true;
-            } else {
-                var data = selectedEvent.GetData();
-                float currentDuration = (float)data["duration"];
-                finalDuration = currentDuration + delta;
-                
-                if (finalDuration > 0) {
-                    data["duration"] = finalDuration;
+                float finalDuration;
+                bool shouldShowPanel;
+
+                if (selectedEvent == null) {
+                    if (delta < 0) return;
+                    AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
+                    selectedEvent = editor.events[editor.events.Count - 1];
+                    
+                    finalDuration = delta;
+                    selectedEvent.GetData()["duration"] = finalDuration;
                     shouldShowPanel = true;
                 } else {
-                    var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                    var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
-                    List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
-                    if (_autoInsertPositionTrack && nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
-                    if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
-                    editor.RemoveEvents(eventsToRemove);
-                    shouldShowPanel = false;
-                    finalDuration = 0;
-                }
-            }
-
-            if (shouldShowPanel) {
-                if (_autoInsertPositionTrack) {
-                    var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                    if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
-                    InsertPositionTrack(id + 1);
-                }
-
-                var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
-                if (moveTracks.Count > 0) {
-                    var mtData = moveTracks[0].GetData();
-                    decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
-                    mtData["duration"] = (float)(tileBeats + (decimal)finalDuration);
-
-                    if (_adjustPositionTrackWithPause) {
-                        float absoluteAngle = editor.levelData.angleData[id];
-                        Vector2 baseOffset = new Vector2(Mathf.Cos(absoluteAngle * Mathf.Deg2Rad), Mathf.Sin(absoluteAngle * Mathf.Deg2Rad));
-                        mtData["positionOffset"] = baseOffset * (finalDuration * _positionTrackUnit);
+                    var data = selectedEvent.GetData();
+                    float currentDuration = (float)data["duration"];
+                    finalDuration = currentDuration + delta;
+                    
+                    if (finalDuration > 0) {
+                        data["duration"] = finalDuration;
+                        shouldShowPanel = true;
+                    } else {
+                        var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                        var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+                        List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
+                        if (_autoInsertPositionTrack && nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
+                        if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
+                        editor.RemoveEvents(eventsToRemove);
+                        shouldShowPanel = false;
+                        finalDuration = 0;
                     }
                 }
 
-                if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id, delta);
-                editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
-            }
+                if (shouldShowPanel) {
+                    if (_autoInsertPositionTrack) {
+                        var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                        if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
+                        InsertPositionTrack(id + 1);
+                    }
 
-            editor.ApplyEventsToFloors();
-            editor.levelEventsPanel.ShowTabsForFloor(id);
-            RemoveTrashUndos(3); 
+                    var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+                    if (moveTracks.Count > 0) {
+                        var mtData = moveTracks[0].GetData();
+                        decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
+                        mtData["duration"] = (float)(tileBeats + (decimal)finalDuration);
+
+                        if (_adjustPositionTrackWithPause) {
+                            float absoluteAngle = editor.levelData.angleData[id];
+                            Vector2 baseOffset = new Vector2(Mathf.Cos(absoluteAngle * Mathf.Deg2Rad), Mathf.Sin(absoluteAngle * Mathf.Deg2Rad));
+                            mtData["positionOffset"] = baseOffset * (finalDuration * _positionTrackUnit);
+                        }
+                    }
+
+                    if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id, delta);
+                    editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
+                }
+
+                editor.ApplyEventsToFloors();
+                editor.levelEventsPanel.ShowTabsForFloor(id);
+            }
         }
 
         public static void InsertPositionTrack(int floorID) {
             var editor = scnEditor.instance;
-            if (floorID - 1 >= editor.levelData.angleData.Count) return; // 없는 타일이면 리턴
-            if (IsFloorRelativeAngle360(floorID - 1)) return; // 전 타일이 360도면 리턴
+            if (floorID - 1 >= editor.levelData.angleData.Count) return; // 마지막 이후 타일이면 리턴
+            if (IsFloorRelativeAngle360(floorID - 1)) return;
             if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return; // 길 위치가 있으면 리턴
             float absoluteAngle = editor.levelData.angleData[floorID - 1];
             float radian = absoluteAngle * Mathf.Deg2Rad;
@@ -539,9 +540,9 @@ namespace QuickChart {
         
         public static void InsertMoveTrack(int floorID) {
             var editor = ADOBase.editor;
-            if (floorID >= editor.floors.Count - 1) return; // 없는 타일이면 리턴
-            if (IsFloorRelativeAngle360(floorID)) return; // 360도 타일이면 리턴
-            if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return; // 길 이동이 있으면 리턴
+            if (floorID >= editor.floors.Count - 1) return; // 마지막 이후 타일이면 리턴
+            if (IsFloorRelativeAngle360(floorID)) return;
+            if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return;
             
             decimal tileBeats = (decimal)GetFloorRelativeAngle(floorID) / 180m;
             decimal beats = tileBeats;
@@ -591,65 +592,69 @@ namespace QuickChart {
             editor.levelEventsPanel.ShowTabsForFloor(floorID);
             editor.levelEventsPanel.ShowPanel(LevelEventType.MoveTrack);
             
-            RemoveTrashUndos();
         }
         
         private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
             var editor = scnEditor.instance;
-            if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
-            editor.SaveState();
-            int floorID = editor.selectedFloors[0].seqID;
-            var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed)?.Find(e => true);
-            float prevTileSpeed = (floorID > 0) ? editor.floors[floorID - 1].speed : 1f;
-            float prevBpm = editor.levelData.bpm * prevTileSpeed;
-            bool shouldShowPanel;
-            if (selectedEvent == null) {
-                AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.SetSpeed });
-                var lastEvent = editor.events[editor.events.Count - 1];
-                var data = lastEvent.GetData();
-                if (calculateByMultiplier) {
-                    data["speedType"] = SpeedType.Multiplier;
-                    data["bpmMultiplier"] = value;
+            if (!editor.SelectionIsSingle()) return;
+
+            using (new SaveStateScope(editor)) {
+                int floorID = editor.selectedFloors[0].seqID;
+                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed)?.Find(e => true);
+                float prevTileSpeed = (floorID > 0) ? editor.floors[floorID - 1].speed : 1f;
+                float prevBpm = editor.levelData.bpm * prevTileSpeed;
+                bool shouldShowPanel;
+                if (selectedEvent == null) {
+                    AddEventMethod.Invoke(editor, new object[] {
+                        floorID, LevelEventType.SetSpeed
+                    });
+                    var lastEvent = editor.events[editor.events.Count - 1];
+                    var data = lastEvent.GetData();
+                    if (calculateByMultiplier) {
+                        data["speedType"] = SpeedType.Multiplier;
+                        data["bpmMultiplier"] = value;
+                    } else {
+                        data["beatsPerMinute"] = Mathf.Max(0.1f, prevBpm + value);
+                    }
+                    shouldShowPanel = true;
                 } else {
-                    data["beatsPerMinute"] = Mathf.Max(0.1f, prevBpm + value);
-                }
-                shouldShowPanel = true;
-            } else {
-                var data = selectedEvent.GetData();
-                var currentType = data["speedType"];
-                bool isBpmMode = currentType.ToString() == "Bpm" || currentType.ToString() == "0";
-                if (calculateByMultiplier) {
-                    string targetKey = isBpmMode ? "beatsPerMinute" : "bpmMultiplier";
-                    float currentVal = Convert.ToSingle(data[targetKey]);
-                    float nextVal = currentVal * value;
-                    if (nextVal > 0f) data[targetKey] = nextVal;
-                } else {
-                    float currentBpm = isBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
-                    decimal preciseBpm = (decimal) currentBpm + (decimal) value;
-                    if (preciseBpm > 0m) {
-                        data["speedType"] = SpeedType.Bpm;
-                        data["beatsPerMinute"] = (float) preciseBpm;
+                    var data = selectedEvent.GetData();
+                    var currentType = data["speedType"];
+                    bool isBpmMode = currentType.ToString() == "Bpm" || currentType.ToString() == "0";
+                    if (calculateByMultiplier) {
+                        string targetKey = isBpmMode ? "beatsPerMinute" : "bpmMultiplier";
+                        float currentVal = Convert.ToSingle(data[targetKey]);
+                        float nextVal = currentVal * value;
+                        if (nextVal > 0f) data[targetKey] = nextVal;
+                    } else {
+                        float currentBpm = isBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
+                        decimal preciseBpm = (decimal) currentBpm + (decimal) value;
+                        if (preciseBpm > 0m) {
+                            data["speedType"] = SpeedType.Bpm;
+                            data["beatsPerMinute"] = (float) preciseBpm;
+                        }
+                    }
+                    bool nowBpmMode = data["speedType"].ToString() == "Bpm" || data["speedType"].ToString() == "0";
+                    float finalSpeed = nowBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
+                    if (Mathf.Approximately(finalSpeed, prevBpm)) {
+                        editor.RemoveEvents(new List<LevelEvent> {
+                            selectedEvent
+                        });
+                        shouldShowPanel = false;
+                    } else {
+                        shouldShowPanel = true;
                     }
                 }
-                bool nowBpmMode = data["speedType"].ToString() == "Bpm" || data["speedType"].ToString() == "0";
-                float finalSpeed = nowBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
-                if (Mathf.Approximately(finalSpeed, prevBpm)) {
-                    editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
-                    shouldShowPanel = false;
-                } else {
-                    shouldShowPanel = true;
+                editor.ApplyEventsToFloors();
+                editor.levelEventsPanel.ShowTabsForFloor(floorID);
+                if (shouldShowPanel) {
+                    var targetEvent = selectedEvent ?? editor.events[editor.events.Count - 1];
+                    editor.levelEventsPanel.ShowPanel(LevelEventType.SetSpeed);
+                    editor.levelEventsPanel.UpdatePropertyText(targetEvent, "beatsPerMinute");
+                    editor.levelEventsPanel.UpdatePropertyText(targetEvent, "bpmMultiplier");
+                    editor.levelEventsPanel.UpdatePropertyText(targetEvent, "speedType");
                 }
             }
-            editor.ApplyEventsToFloors();
-            editor.levelEventsPanel.ShowTabsForFloor(floorID);
-            if (shouldShowPanel) {
-                var targetEvent = selectedEvent ?? editor.events[editor.events.Count - 1];
-                editor.levelEventsPanel.ShowPanel(LevelEventType.SetSpeed);
-                editor.levelEventsPanel.UpdatePropertyText(targetEvent, "beatsPerMinute");
-                editor.levelEventsPanel.UpdatePropertyText(targetEvent, "bpmMultiplier");
-                editor.levelEventsPanel.UpdatePropertyText(targetEvent, "speedType");
-            }
-            RemoveTrashUndos();
         }
 
         public static double GetFloorRelativeAngle(int floorID) {
@@ -672,56 +677,51 @@ namespace QuickChart {
             return isCtrlPressed == ctrl && isAltPressed == alt && isShiftPressed == shift;
         }
         
-        public static void RemoveTrashUndos(int amount = 2) {
-            var editor = scnEditor.instance;
-            int count = editor.undoStates.Count;
-            if (count >= amount) {
-                editor.undoStates.RemoveRange(count - amount, amount);
-            } else if (count > 0) {
-                editor.undoStates.RemoveAt(count - 1);
-            }
-        }
-        
         private static void ConvertLegacyPause(bool isDown) {
             scnEditor editor = ADOBase.editor;
-            var angleData = editor.levelData.angleData;
-            int tiles = angleData.Count;
+
             List<int> changedTiles = new List<int>();
-            
-            editor.SaveState();
 
-            for (int i = 0; i < tiles - 1; i++) {
-                if (Mathf.Approximately(Mathf.Abs(angleData[i + 1] - angleData[i]), 180f)) {
-                    var pauseEvents = editor.GetFloorEvents(i + 1, LevelEventType.Pause);
-            
-                    if (pauseEvents != null && pauseEvents.Count > 0) {
-                        changedTiles.Add(i + 1);
-                
-                        float currentDuration = Convert.ToSingle(pauseEvents[0].GetData()["duration"]);
-                        decimal preciseCalc = isDown ? (decimal)currentDuration - 1m : (decimal)currentDuration + 1m;
-                        pauseEvents[0].GetData()["duration"] = (float)preciseCalc;
+            using (new SaveStateScope(editor)) {
 
-                        if (editor.selectedFloors.Count > 0 && editor.selectedFloors[0].seqID == i + 1) {
-                            editor.levelEventsPanel.UpdatePropertyText(pauseEvents[0], "duration");
+                var angleData = editor.levelData.angleData;
+                int tiles = angleData.Count;
+
+
+                for (int i = 0; i < tiles - 1; i++) {
+                    if (Mathf.Approximately(Mathf.Abs(angleData[i + 1] - angleData[i]), 180f)) {
+                        var pauseEvents = editor.GetFloorEvents(i + 1, LevelEventType.Pause);
+
+                        if (pauseEvents != null && pauseEvents.Count > 0) {
+                            changedTiles.Add(i + 1);
+
+                            float currentDuration = Convert.ToSingle(pauseEvents[0].GetData()["duration"]);
+                            decimal preciseCalc = isDown ? (decimal) currentDuration - 1m : (decimal) currentDuration + 1m;
+                            pauseEvents[0].GetData()["duration"] = (float) preciseCalc;
+
+                            if (editor.selectedFloors.Count > 0 && editor.selectedFloors[0].seqID == i + 1) {
+                                editor.levelEventsPanel.UpdatePropertyText(pauseEvents[0], "duration");
+                            }
                         }
                     }
                 }
+
+                editor.levelData.legacyPause = false;
             }
-
-            editor.levelData.legacyPause = false;
-
+            
             if (changedTiles.Count > 0) {
                 _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation($"{changedTiles.Count}개 변경!", $"{changedTiles.Count} tiles changed!") + $"({string.Join(", ", changedTiles)})</color>";
             } else {
-                RemoveTrashUndos(1);
                 _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
             }
         }
 
         private static void ExecuteAngleChange() {
-            if (!ADOBase.isEditingLevel || ADOBase.editor == null) return;
+            scnEditor editor = ADOBase.editor;
+
+            if (!ADOBase.isEditingLevel || editor == null) return;
             
-            int maxTileIndex = ADOBase.editor.floors.Count - 1;
+            int maxTileIndex = editor.floors.Count - 1;
             int startTile = 1;
             int endTile = maxTileIndex - 1;
             
@@ -739,42 +739,42 @@ namespace QuickChart {
                 return;
             }
 
-            ADOBase.editor.SaveState();
-            
-            int changedCount = 0;
-            float find = (float)findAngle;
-            float replace = (float)replaceAngle;
-            decimal targetFind = Math.Round((decimal)find, 3);
-            decimal targetReplace = Math.Round((decimal)replace, 3);
+            using (new SaveStateScope(editor)) {
 
-            List<int> tilesToChange = new List<int>();
-            for (int i = startTile; i <= endTile; i++) {
-                decimal currentAngle = Math.Round((decimal)GetFloorRelativeAngle(i), 3);
-                if (currentAngle == targetFind) {
-                    tilesToChange.Add(i);
+                int changedCount = 0;
+                float find = (float) findAngle;
+                float replace = (float) replaceAngle;
+                decimal targetFind = Math.Round((decimal) find, 3);
+                decimal targetReplace = Math.Round((decimal) replace, 3);
+
+                List<int> tilesToChange = new List<int>();
+                for (int i = startTile; i <= endTile; i++) {
+                    decimal currentAngle = Math.Round((decimal) GetFloorRelativeAngle(i), 3);
+                    if (currentAngle == targetFind) {
+                        tilesToChange.Add(i);
+                    }
                 }
-            }
 
-            foreach (int i in tilesToChange) {
-                float originalAngleI = ADOBase.editor.levelData.angleData[i];
-                float dR = replace - find;
-                
-                var floor = ADOBase.editor.floors[i];
-                bool isCCW = floor.isCCW;
-                
-                float deltaA = isCCW ? dR : -dR;
+                foreach (int i in tilesToChange) {
+                    float originalAngleI = editor.levelData.angleData[i];
+                    float dR = replace - find;
 
-                ADOBase.editor.levelData.angleData[i] = originalAngleI + deltaA;
-                changedCount++;
-                // Logger.Log($"{i}: {find} -> {replace} isCCW: {isCCW})");
-            }
+                    var floor = editor.floors[i];
+                    bool isCCW = floor.isCCW;
 
-            if (changedCount > 0) {
-                ADOBase.editor.RemakePath();
-                _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{changedCount}개 변경!", $"{changedCount} tiles changed!") + $"({string.Join(", ", tilesToChange)})</color>";
-            } else {
-                RemoveTrashUndos(1);
-                _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
+                    float deltaA = isCCW ? dR : -dR;
+
+                    editor.levelData.angleData[i] = originalAngleI + deltaA;
+                    changedCount++;
+                    // Logger.Log($"{i}: {find} -> {replace} isCCW: {isCCW})");
+                }
+
+                if (changedCount > 0) {
+                    editor.RemakePath();
+                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{changedCount}개 변경!", $"{changedCount} tiles changed!") + $"({string.Join(", ", tilesToChange)})</color>";
+                } else {
+                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
+                }
             }
         }
     }
