@@ -199,7 +199,10 @@ namespace QuickChart {
             }
         }
 
-
+        [HarmonyPatch(typeof(scnEditor), "Update")]
+        public static class EditorUpdatePatch {
+            public static void Postfix(scnEditor __instance) => Main.OnUpdate(__instance);
+        }
 
 
     }

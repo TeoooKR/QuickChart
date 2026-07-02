@@ -83,7 +83,6 @@ namespace QuickChart {
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
-            modEntry.OnUpdate = OnUpdate;
         }
 
         private static bool OnToggle(UnityModManager.ModEntry modEntry, bool value) {
@@ -361,8 +360,9 @@ namespace QuickChart {
             _settings.Save(modEntry);
         }
         
-        private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
-            if (!_isEnabled) return;
+        public static void OnUpdate(scnEditor editor) {
+            if(!ADOBase.controller.paused) return;
+            float deltaTime = Time.unscaledDeltaTime;
 
             bool pauseCtrl = !_swapShortcuts;
             bool pauseAlt = _swapShortcuts;
@@ -385,12 +385,12 @@ namespace QuickChart {
             }
 
             if (_pauseShortcutEnabled) {
-                if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(1);
-                if (CheckShortcut(KeyCode.DownArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(-1);
+                if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(editor, 1);
+                if (CheckShortcut(KeyCode.DownArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(editor, -1);
             }
             if (_speedShortcutEnabled) {
-                if (CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(2.0f, true);
-                if (CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(0.5f, true);
+                if (CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(editor, 2.0f, true);
+                if (CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(editor, 0.5f, true);
 
                 bool up = CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt, shift: true, useKeyDown: false);
                 bool down = CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt, shift: true, useKeyDown: false);
@@ -407,14 +407,14 @@ namespace QuickChart {
                     float delta = (currentDir == 1) ? _bpmDelta : -_bpmDelta;
 
                     if (_keyHoldTimer == 0f) {
-                        HandleSetSpeed(delta, false);
+                        HandleSetSpeed(editor, delta, false);
                         _keyHoldTimer += deltaTime;
                     } else {
                         _keyHoldTimer += deltaTime;
                         if (_keyHoldTimer > 0.4f) {
                             _repeatTimer += deltaTime;
                             if (_repeatTimer > 0.05f) {
-                                HandleSetSpeed(delta, false);
+                                HandleSetSpeed(editor, delta, false);
                                 _repeatTimer = 0f;
                             }
                         }
@@ -446,8 +446,7 @@ namespace QuickChart {
             }
         }
         
-        private static void HandlePause(int delta) {
-            var editor = scnEditor.instance;
+        private static void HandlePause(scnEditor editor, int delta) {
             if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
 
             using (new SaveStateScope(editor)) {
@@ -594,8 +593,7 @@ namespace QuickChart {
             
         }
         
-        private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
-            var editor = scnEditor.instance;
+        private static void HandleSetSpeed(scnEditor editor, float value, bool calculateByMultiplier) {
             if (!editor.SelectionIsSingle()) return;
 
             using (new SaveStateScope(editor)) {
