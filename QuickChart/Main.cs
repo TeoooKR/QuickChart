@@ -730,12 +730,13 @@ namespace QuickChart {
 
             startTile = Mathf.Clamp(startTile, 1, maxTileIndex - 1);
             endTile = Mathf.Clamp(endTile, 1, maxTileIndex - 1);
+            
+            if (endTile < startTile) return;
 
             if (!double.TryParse(_settings.ChangeAngleFind, out double findAngle)) return;
             if (!double.TryParse(_settings.ChangeAngleReplace, out double replaceAngle)) return;
 
             using (new SaveStateScope(editor)) {
-                int changedCount = 0;
                 float find = (float) findAngle;
                 float replace = (float) replaceAngle;
                 float targetFind = (float) Math.Round(find, 3);
@@ -746,27 +747,23 @@ namespace QuickChart {
 
                     // ReSharper disable once CompareOfFloatsByEqualityOperator
                     if (currentAngle == targetFind) {
+                        float originalAngleI = editor.levelData.angleData[i];
+                        float dR = replace - find;
+
+                        var floor = editor.floors[i];
+                        bool isCCW = floor.isCCW;
+
+                        float deltaA = isCCW ? dR : -dR;
+
+                        editor.levelData.angleData[i] = originalAngleI + deltaA;
                         tilesToChange.Add(i);
+                        // Logger.Log($"{i}: {find} -> {replace} isCCW: {isCCW})");
                     }
                 }
 
-                foreach (int i in tilesToChange) {
-                    float originalAngleI = editor.levelData.angleData[i];
-                    float dR = replace - find;
-
-                    var floor = editor.floors[i];
-                    bool isCCW = floor.isCCW;
-
-                    float deltaA = isCCW ? dR : -dR;
-
-                    editor.levelData.angleData[i] = originalAngleI + deltaA;
-                    changedCount++;
-                    // Logger.Log($"{i}: {find} -> {replace} isCCW: {isCCW})");
-                }
-
-                if (changedCount > 0) {
+                if (tilesToChange.Count > 0) {
                     editor.RemakePath();
-                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{changedCount}개 변경!", $"{changedCount} tiles changed!") + $"({string.Join(", ", tilesToChange)})</color>";
+                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{tilesToChange.Count}개 변경!", $"{tilesToChange.Count} tiles changed!") + $"({string.Join(", ", tilesToChange)})</color>";
                 } else {
                     _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
                 }
