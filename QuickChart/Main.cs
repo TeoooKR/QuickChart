@@ -432,16 +432,16 @@ namespace QuickChart {
 
             var data = pauseEvent.GetData();
             float duration = Convert.ToSingle(data["duration"]);
-            decimal tileBeats = (decimal)GetFloorRelativeAngle(floorID) / 180m;
-            decimal totalBeats = tileBeats + (decimal)duration;
+            double tileBeats = GetFloorRelativeAngle(floorID) / 180;
+            double totalBeats = tileBeats + duration;
 
             if (IsFloorRelativeAngle360(floorID)) {
                 totalBeats -= 1;
             }
             
-            if (totalBeats >= 4m && delta >= 0) {
+            if (totalBeats >= 4 && delta >= 0) {
                 data["countdownTicks"] = 4;
-            } else if (totalBeats < 4m && delta < 0) {
+            } else if (totalBeats < 4 && delta < 0) {
                 data["countdownTicks"] = 0;
             }
         }
@@ -495,8 +495,8 @@ namespace QuickChart {
                     var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
                     if (moveTracks.Count > 0) {
                         var mtData = moveTracks[0].GetData();
-                        decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
-                        mtData["duration"] = (float)(tileBeats + (decimal)finalDuration);
+                        double tileBeats = GetFloorRelativeAngle(id) / 180;
+                        mtData["duration"] = (float) (tileBeats + finalDuration);
 
                         if (_adjustPositionTrackWithPause) {
                             float absoluteAngle = editor.levelData.angleData[id];
@@ -544,13 +544,13 @@ namespace QuickChart {
             if (IsFloorRelativeAngle360(floorID)) return;
             if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return;
             
-            decimal tileBeats = (decimal)GetFloorRelativeAngle(floorID) / 180m;
-            decimal beats = tileBeats;
+            double tileBeats = GetFloorRelativeAngle(floorID) / 180;
+            double beats = tileBeats;
             var pause = editor.GetFloorEvents(floorID, LevelEventType.Pause);
             float pauseDuration = 0f;
             if (pause.Count > 0) {
                 pauseDuration = Convert.ToSingle(pause[0].GetData()["duration"]);
-                beats += (decimal)pauseDuration;
+                beats += pauseDuration;
             }
             AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.MoveTrack });
             
@@ -628,10 +628,10 @@ namespace QuickChart {
                         if (nextVal > 0f) data[targetKey] = nextVal;
                     } else {
                         float currentBpm = isBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
-                        decimal preciseBpm = (decimal) currentBpm + (decimal) value;
-                        if (preciseBpm > 0m) {
+                        float preciseBpm = currentBpm + value;
+                        if (preciseBpm > 0) {
                             data["speedType"] = SpeedType.Bpm;
-                            data["beatsPerMinute"] = (float) preciseBpm;
+                            data["beatsPerMinute"] = preciseBpm;
                         }
                     }
                     bool nowBpmMode = data["speedType"].ToString() == "Bpm" || data["speedType"].ToString() == "0";
@@ -695,8 +695,8 @@ namespace QuickChart {
                             changedTiles.Add(i + 1);
 
                             float currentDuration = Convert.ToSingle(pauseEvents[0].GetData()["duration"]);
-                            decimal preciseCalc = isDown ? (decimal) currentDuration - 1m : (decimal) currentDuration + 1m;
-                            pauseEvents[0].GetData()["duration"] = (float) preciseCalc;
+                            float preciseCalc = isDown ? currentDuration - 1 : currentDuration + 1;
+                            pauseEvents[0].GetData()["duration"] = preciseCalc;
 
                             if (editor.selectedFloors.Count > 0 && editor.selectedFloors[0].seqID == i + 1) {
                                 editor.levelEventsPanel.UpdatePropertyText(pauseEvents[0], "duration");
@@ -738,12 +738,13 @@ namespace QuickChart {
                 int changedCount = 0;
                 float find = (float) findAngle;
                 float replace = (float) replaceAngle;
-                decimal targetFind = Math.Round((decimal) find, 3);
-                decimal targetReplace = Math.Round((decimal) replace, 3);
+                float targetFind = (float) Math.Round(find, 3);
 
                 List<int> tilesToChange = new List<int>();
                 for (int i = startTile; i <= endTile; i++) {
-                    decimal currentAngle = Math.Round((decimal) GetFloorRelativeAngle(i), 3);
+                    float currentAngle = (float) Math.Round(GetFloorRelativeAngle(i), 3);
+
+                    // ReSharper disable once CompareOfFloatsByEqualityOperator
                     if (currentAngle == targetFind) {
                         tilesToChange.Add(i);
                     }

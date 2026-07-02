@@ -84,16 +84,16 @@ namespace QuickChart {
                                 mtData["positionOffset"] = ptList[0].GetData()["positionOffset"];
                             }
 
-                            decimal tileBeats = (decimal) Main.GetFloorRelativeAngle(floorID) / 180m;
+                            double tileBeats = Main.GetFloorRelativeAngle(floorID) / 180;
                             float pauseDuration = Convert.ToSingle(pauseEventsOnCurrent[0].GetData()["duration"]);
-                            mtData["duration"] = (float) (tileBeats + (decimal) pauseDuration);
+                            mtData["duration"] = (float) (tileBeats + pauseDuration);
                         }
                     }
                 }
 
                 if (Main._autoInsertTwirl) {
-                    decimal angle = Math.Round((decimal) Main.GetFloorRelativeAngle(floorID), 3);
-                    if (angle > 180m && angle != 360m) {
+                    double angle = Math.Round(Main.GetFloorRelativeAngle(floorID), 3);
+                    if (angle > 180 && Math.Abs(angle - 360) > 0.001) {
                         if (editor.GetFloorEvents(floorID, LevelEventType.Twirl).Count == 0) {
                             AddEventMethod?.Invoke(editor, new object[] {
                                 floorID, LevelEventType.Twirl
