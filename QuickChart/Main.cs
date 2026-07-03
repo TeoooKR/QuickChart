@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using ADOFAI;
 using ADOFAI.Editor;
@@ -451,7 +452,7 @@ namespace QuickChart {
 
             using (new SaveStateScope(editor)) {
                 int id = editor.selectedFloors[0].seqID;
-                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
+                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause).FirstOrDefault();
                 
                 float finalDuration;
                 bool shouldShowPanel;
@@ -598,7 +599,7 @@ namespace QuickChart {
 
             using (new SaveStateScope(editor)) {
                 int floorID = editor.selectedFloors[0].seqID;
-                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed)?.Find(e => true);
+                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed).FirstOrDefault();
                 float prevTileSpeed = (floorID > 0) ? editor.floors[floorID - 1].speed : 1f;
                 float prevBpm = editor.levelData.bpm * prevTileSpeed;
                 bool shouldShowPanel;
