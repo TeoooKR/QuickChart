@@ -428,8 +428,8 @@ namespace QuickChart {
             }
         }
         
-        public static void UpdateCountdownTicks(LevelEvent pauseEvent, int floorID, int delta = 0) {
-            if (!_autoSetCountdownTicks || pauseEvent == null) return;
+        public static bool UpdateCountdownTicks(LevelEvent pauseEvent, int floorID, int delta = 0) {
+            if (!_autoSetCountdownTicks || pauseEvent == null) return false;
 
             var data = pauseEvent.GetData();
             float duration = Convert.ToSingle(data["duration"]);
@@ -445,6 +445,7 @@ namespace QuickChart {
             } else if (totalBeats < 4 && delta < 0) {
                 data["countdownTicks"] = 0;
             }
+            return true;
         }
         
         private static void HandlePause(scnEditor editor, int delta) {
@@ -514,11 +515,11 @@ namespace QuickChart {
             }
         }
 
-        public static void InsertPositionTrack(int floorID) {
+        public static bool InsertPositionTrack(int floorID) {
             var editor = scnEditor.instance;
-            if (floorID - 1 >= editor.levelData.angleData.Count) return; // 마지막 이후 타일이면 리턴
-            if (IsFloorRelativeAngle360(floorID - 1)) return;
-            if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return; // 길 위치가 있으면 리턴
+            if (floorID - 1 >= editor.levelData.angleData.Count) return false; // 마지막 이후 타일이면 리턴
+            if (IsFloorRelativeAngle360(floorID - 1)) return false;
+            if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return false; // 길 위치가 있으면 리턴
             float absoluteAngle = editor.levelData.angleData[floorID - 1];
             float radian = absoluteAngle * Mathf.Deg2Rad;
             Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
@@ -535,14 +536,14 @@ namespace QuickChart {
             var data = lastEvent.GetData();
             data["positionOffset"] = baseOffset * (finalMultiplier * _positionTrackUnit);
             lastEvent.disabled["positionOffset"] = false;
-            editor.ApplyEventsToFloors();
+            return true;
         }
         
-        public static void InsertMoveTrack(int floorID) {
+        public static bool InsertMoveTrack(int floorID) {
             var editor = ADOBase.editor;
-            if (floorID >= editor.floors.Count - 1) return; // 마지막 이후 타일이면 리턴
-            if (IsFloorRelativeAngle360(floorID)) return;
-            if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return;
+            if (floorID >= editor.floors.Count - 1) return false; // 마지막 이후 타일이면 리턴
+            if (IsFloorRelativeAngle360(floorID)) return false;
+            if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return false;
             
             double tileBeats = GetFloorRelativeAngle(floorID) / 180;
             double beats = tileBeats;
@@ -587,11 +588,10 @@ namespace QuickChart {
             } catch {
                 data["ease"] = Enum.Parse(easeType, "Linear");
             }
-            editor.ApplyEventsToFloors();
-            scnEditor.instance.RemakePath();
+            scnEditor.instance.RemakePath(false);
             editor.levelEventsPanel.ShowTabsForFloor(floorID);
             editor.levelEventsPanel.ShowPanel(LevelEventType.MoveTrack);
-            
+            return true;
         }
         
         private static void HandleSetSpeed(scnEditor editor, float value, bool calculateByMultiplier) {

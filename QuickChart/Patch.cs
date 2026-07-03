@@ -59,24 +59,26 @@ namespace QuickChart {
                 var floorID = editor.selectedFloors[0].seqID;
 
                 editor.RemakePath();
+                var changed = false;
 
                 var shiftedPT = editor.GetFloorEvents(floorID + 2, LevelEventType.PositionTrack);
                 if (shiftedPT.Count > 0) {
                     editor.RemoveEvent(shiftedPT[0]);
+                    changed = true;
                 }
 
                 var pauseEventsOnCurrent = editor.GetFloorEvents(floorID, LevelEventType.Pause);
                 if (pauseEventsOnCurrent.Count > 0) {
-                    Main.UpdateCountdownTicks(pauseEventsOnCurrent[0], floorID);
+                    changed |= Main.UpdateCountdownTicks(pauseEventsOnCurrent[0], floorID);
                 }
 
                 if (Main._autoInsertPositionTrack) {
                     if (pauseEventsOnCurrent.Count > 0) {
-                        Main.InsertPositionTrack(floorID + 1);
+                        changed |= Main.InsertPositionTrack(floorID + 1);
 
                         var moveTracks = editor.GetFloorEvents(floorID, LevelEventType.MoveTrack);
                         if (moveTracks.Count == 0) {
-                            Main.InsertMoveTrack(floorID);
+                            changed |= Main.InsertMoveTrack(floorID);
                         } else {
                             var mtData = moveTracks[0].GetData();
                             var ptList = editor.GetFloorEvents(floorID + 1, LevelEventType.PositionTrack);
@@ -87,6 +89,7 @@ namespace QuickChart {
                             double tileBeats = Main.GetFloorRelativeAngle(floorID) / 180;
                             float pauseDuration = Convert.ToSingle(pauseEventsOnCurrent[0].GetData()["duration"]);
                             mtData["duration"] = (float) (tileBeats + pauseDuration);
+                            changed = true;
                         }
                     }
                 }
@@ -98,11 +101,12 @@ namespace QuickChart {
                             AddEventMethod?.Invoke(editor, new object[] {
                                 floorID, LevelEventType.Twirl
                             });
+                            changed = true;
                         }
                     }
                 }
 
-                editor.ApplyEventsToFloors();
+                if(changed) editor.ApplyEventsToFloors();
             }
         }
 
@@ -110,12 +114,16 @@ namespace QuickChart {
         public static class AddEventPatch {
             public static void Postfix(int floorID, LevelEventType eventType) {
                 if (eventType == LevelEventType.Pause) {
+                    bool changed = false;
+
                     if (Main._autoInsertPositionTrack) {
-                        Main.InsertPositionTrack(floorID + 1);
+                        changed = Main.InsertPositionTrack(floorID + 1);
                     }
                     if (Main._autoInsertMoveTrack) {
-                        Main.InsertMoveTrack(floorID);
+                        changed |= Main.InsertMoveTrack(floorID);
                     }
+
+                    if(changed) scnEditor.instance.ApplyEventsToFloors();
                 }
             }
         }
@@ -134,7 +142,7 @@ namespace QuickChart {
                         OffsetFloorIDsInEventsMethod.Invoke(__instance, new object[] {
                             seqId, __instance.clipboard.Count
                         });
-                        for (int index = 0; index < __instance.clipboard.Count<object>(); ++index) {
+                        for (int index = 0; index < __instance.clipboard.Count; ++index) {
                             scnEditor.FloorData floorData = (scnEditor.FloorData) __instance.clipboard[index];
                             List<LevelEvent> levelEventData = floorData.levelEventData;
 
