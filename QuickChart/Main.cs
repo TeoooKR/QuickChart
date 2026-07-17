@@ -449,7 +449,7 @@ namespace QuickChart {
         }
         
         private static void HandlePause(scnEditor editor, int delta) {
-            if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
+            if (!editor.SelectionIsSingle()) return;
 
             using (new SaveStateScope(editor)) {
                 int id = editor.selectedFloors[0].seqID;
@@ -517,9 +517,9 @@ namespace QuickChart {
 
         public static bool InsertPositionTrack(int floorID) {
             var editor = scnEditor.instance;
-            if (floorID - 1 >= editor.levelData.angleData.Count) return false; // 마지막 이후 타일이면 리턴
+            if (floorID - 1 >= editor.levelData.angleData.Count) return false; 
             if (IsFloorRelativeAngle360(floorID - 1)) return false;
-            if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return false; // 길 위치가 있으면 리턴
+            if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return false;
             float absoluteAngle = editor.levelData.angleData[floorID - 1];
             float radian = absoluteAngle * Mathf.Deg2Rad;
             Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
@@ -541,7 +541,7 @@ namespace QuickChart {
         
         public static bool InsertMoveTrack(int floorID) {
             var editor = ADOBase.editor;
-            if (floorID >= editor.floors.Count - 1) return false; // 마지막 이후 타일이면 리턴
+            if (floorID >= editor.floors.Count - 1) return false;
             if (IsFloorRelativeAngle360(floorID)) return false;
             if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return false;
             

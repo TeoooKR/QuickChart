@@ -146,7 +146,6 @@ namespace QuickChart {
                             scnEditor.FloorData floorData = (scnEditor.FloorData) __instance.clipboard[index];
                             List<LevelEvent> levelEventData = floorData.levelEventData;
 
-
                             float floatDirection = floorData.floatDirection;
                             __instance.levelData.angleData.Insert(seqId, floatDirection);
 
@@ -175,23 +174,23 @@ namespace QuickChart {
                                 }
                             }
                         }
-                    }
 
-                    __instance.RemakePath();
-                    __instance.SelectFloor(__instance.floors[seqId]);
-                    MoveCameraToFloorMethod.Invoke(__instance, new object[] {
-                        __instance.floors[seqId]
-                    });
+                        __instance.RemakePath();
+                        __instance.SelectFloor(__instance.floors[seqId]);
+                        MoveCameraToFloorMethod.Invoke(__instance, new object[] {
+                            __instance.floors[seqId]
+                        });
 
-                    foreach (int index in intList) {
+                        foreach (int index in intList) {
+                            FlashTileMethod.Invoke(__instance, new object[] {
+                                __instance.floors[index]
+                            });
+                        }
+
                         FlashTileMethod.Invoke(__instance, new object[] {
-                            __instance.floors[index]
+                            __instance.floors[__instance.selectedFloors[0].seqID]
                         });
                     }
-
-                    FlashTileMethod.Invoke(__instance, new object[] {
-                        __instance.floors[__instance.selectedFloors[0].seqID]
-                    });
 
                     return false;
                 }
