@@ -251,7 +251,7 @@ namespace QuickChart {
             GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
-                    GUILayout.Label(GetTranslation("적용할 타일 범위 (Ctrl + C): ", "Tile Range (Ctrl + C): "));
+                    GUILayout.Label(GetTranslation("적용할 타일 범위 (선택 시 자동 입력): ", "Tile Range (auto filled on selection): "));
                     _settings.ChangeAngleStartTile = GUILayout.TextField(_settings.ChangeAngleStartTile, GUILayout.Width(40));
                     GUILayout.Label(" ~ ");
                     _settings.ChangeAngleEndTile = GUILayout.TextField(_settings.ChangeAngleEndTile, GUILayout.Width(40));
@@ -368,21 +368,6 @@ namespace QuickChart {
             bool pauseAlt = _swapShortcuts;
             bool speedCtrl = _swapShortcuts;
             bool speedAlt = !_swapShortcuts;
-            
-            if (CheckShortcut(KeyCode.C, ctrl: true)) {
-                if (ADOBase.isEditingLevel && ADOBase.editor != null && ADOBase.editor.selectedFloors != null && ADOBase.editor.selectedFloors.Count > 0) {
-                    int minId = int.MaxValue;
-                    int maxId = -1;
-                    foreach (var floor in ADOBase.editor.selectedFloors) {
-                        if (floor.seqID < minId) minId = floor.seqID;
-                        if (floor.seqID > maxId) maxId = floor.seqID;
-                    }
-                    if (minId != int.MaxValue && maxId != -1) {
-                        _settings.ChangeAngleStartTile = minId.ToString();
-                        _settings.ChangeAngleEndTile = maxId.ToString();
-                    }
-                }
-            }
 
             if (_pauseShortcutEnabled) {
                 if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(1);
@@ -667,6 +652,11 @@ namespace QuickChart {
 
         private static bool IsFloorRelativeAngle360(int floorID) => 
             Mathf.Approximately((float)GetFloorRelativeAngle(floorID), 360f);
+        
+        public static void UpdateChangeAngleTileRange(int startTile, int endTile) {
+            _settings.ChangeAngleStartTile = startTile.ToString();
+            _settings.ChangeAngleEndTile = endTile.ToString();
+        }
         
         private static bool CheckShortcut(KeyCode key, bool ctrl = false, bool alt = false, bool shift = false, bool useKeyDown = true) {
             bool keyCheck = useKeyDown ? Input.GetKeyDown(key) : Input.GetKey(key);
