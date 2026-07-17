@@ -731,37 +731,47 @@ namespace QuickChart {
 
             using (new SaveStateScope(editor)) {
 
-                int changedCount = 0;
                 float find = (float) findAngle;
                 float replace = (float) replaceAngle;
                 decimal targetFind = Math.Round((decimal) find, 3);
-                decimal targetReplace = Math.Round((decimal) replace, 3);
 
-                List<int> tilesToChange = new List<int>();
-                for (int i = startTile; i <= endTile; i++) {
-                    decimal currentAngle = Math.Round((decimal) GetFloorRelativeAngle(i), 3);
-                    if (currentAngle == targetFind) {
-                        tilesToChange.Add(i);
+                HashSet<int> allChangedTiles = new HashSet<int>();
+                int totalIterations = 0;
+                const int maxIterations = 100;
+
+                while (totalIterations < maxIterations) {
+                    totalIterations++;
+                    
+                    List<int> tilesToChange = new List<int>();
+                    for (int i = startTile; i <= endTile; i++) {
+                        decimal currentAngle = Math.Round((decimal) GetFloorRelativeAngle(i), 3);
+                        if (currentAngle == targetFind) {
+                            tilesToChange.Add(i);
+                        }
                     }
-                }
 
-                foreach (int i in tilesToChange) {
-                    float originalAngleI = editor.levelData.angleData[i];
-                    float dR = replace - find;
+                    if (tilesToChange.Count == 0) break;
 
-                    var floor = editor.floors[i];
-                    bool isCCW = floor.isCCW;
+                    foreach (int i in tilesToChange) {
+                        float originalAngleI = editor.levelData.angleData[i];
+                        float dR = replace - find;
 
-                    float deltaA = isCCW ? dR : -dR;
+                        var floor = editor.floors[i];
+                        bool isCCW = floor.isCCW;
 
-                    editor.levelData.angleData[i] = originalAngleI + deltaA;
-                    changedCount++;
-                    // Logger.Log($"{i}: {find} -> {replace} isCCW: {isCCW})");
-                }
+                        float deltaA = isCCW ? dR : -dR;
 
-                if (changedCount > 0) {
+                        editor.levelData.angleData[i] = originalAngleI + deltaA;
+                        allChangedTiles.Add(i);
+                    }
+
                     editor.RemakePath();
-                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{changedCount}개 변경!", $"{changedCount} tiles changed!") + $"({string.Join(", ", tilesToChange)})</color>";
+                }
+
+                if (allChangedTiles.Count > 0) {
+                    var sortedTiles = new List<int>(allChangedTiles);
+                    sortedTiles.Sort();
+                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{allChangedTiles.Count}개 변경!", $"{allChangedTiles.Count} tiles changed!") + $" ({string.Join(", ", sortedTiles)})</color>";
                 } else {
                     _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
                 }
