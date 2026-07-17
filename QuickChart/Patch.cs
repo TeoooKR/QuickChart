@@ -199,21 +199,7 @@ namespace QuickChart {
             }
         }
 
-        [HarmonyPatch(typeof(scnEditor), "OnSelectedFloorChange")]
-        public static class OnSelectedFloorChangePatch {
-            public static void Postfix(scnEditor __instance) {
-                if (__instance.selectedFloors == null || __instance.selectedFloors.Count == 0) return;
-                int minId = int.MaxValue;
-                int maxId = -1;
-                foreach (var floor in __instance.selectedFloors) {
-                    if (floor.seqID < minId) minId = floor.seqID;
-                    if (floor.seqID > maxId) maxId = floor.seqID;
-                }
-                if (minId != int.MaxValue && maxId != -1) {
-                    Main.UpdateChangeAngleTileRange(minId, maxId);
-                }
-            }
-        }
+
 
 
     }
