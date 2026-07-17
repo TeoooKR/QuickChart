@@ -251,7 +251,7 @@ namespace QuickChart {
             GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
-                    GUILayout.Label(GetTranslation("적용할 타일 범위 (Ctrl + C): ", "Tile Range (Ctrl + C): "));
+                    GUILayout.Label(GetTranslation("적용할 타일 범위 (선택 시 자동 입력): ", "Tile Range (auto filled on selection): "));
                     _settings.ChangeAngleStartTile = GUILayout.TextField(_settings.ChangeAngleStartTile, GUILayout.Width(40));
                     GUILayout.Label(" ~ ");
                     _settings.ChangeAngleEndTile = GUILayout.TextField(_settings.ChangeAngleEndTile, GUILayout.Width(40));
@@ -370,20 +370,7 @@ namespace QuickChart {
             bool speedCtrl = _swapShortcuts;
             bool speedAlt = !_swapShortcuts;
             
-            if (CheckShortcut(KeyCode.C, ctrl: true)) {
-                if (editor.selectedFloors != null && editor.selectedFloors.Count > 0) {
-                    int minId = int.MaxValue;
-                    int maxId = -1;
-                    foreach (var floor in ADOBase.editor.selectedFloors) {
-                        if (floor.seqID < minId) minId = floor.seqID;
-                        if (floor.seqID > maxId) maxId = floor.seqID;
-                    }
-                    if (minId != int.MaxValue && maxId != -1) {
-                        _settings.ChangeAngleStartTile = minId.ToString();
-                        _settings.ChangeAngleEndTile = maxId.ToString();
-                    }
-                }
-            }
+
 
             if (_pauseShortcutEnabled) {
                 if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(editor, 1);
@@ -666,6 +653,11 @@ namespace QuickChart {
         private static bool IsFloorRelativeAngle360(int floorID) => 
             Mathf.Approximately((float)GetFloorRelativeAngle(floorID), 360f);
         
+        public static void UpdateChangeAngleTileRange(int startTile, int endTile) {
+            _settings.ChangeAngleStartTile = startTile.ToString();
+            _settings.ChangeAngleEndTile = endTile.ToString();
+        }
+        
         private static bool CheckShortcut(KeyCode key, bool ctrl = false, bool alt = false, bool shift = false, bool useKeyDown = true) {
             bool keyCheck = useKeyDown ? Input.GetKeyDown(key) : Input.GetKey(key);
             if(!keyCheck) return false;
@@ -739,12 +731,26 @@ namespace QuickChart {
                 float replace = (float) replaceAngle;
                 float targetFind = (float) Math.Round(find, 3);
 
-                List<int> tilesToChange = new List<int>();
-                for (int i = startTile; i <= endTile; i++) {
-                    float currentAngle = (float) Math.Round(GetFloorRelativeAngle(i), 3);
+                HashSet<int> allChangedTiles = new HashSet<int>();
+                int totalIterations = 0;
+                const int maxIterations = 100;
 
-                    // ReSharper disable once CompareOfFloatsByEqualityOperator
-                    if (currentAngle == targetFind) {
+                while (totalIterations < maxIterations) {
+                    totalIterations++;
+
+                    List<int> tilesToChange = new List<int>();
+                    for (int i = startTile; i <= endTile; i++) {
+                        float currentAngle = (float) Math.Round(GetFloorRelativeAngle(i), 3);
+
+                        // ReSharper disable once CompareOfFloatsByEqualityOperator
+                        if (currentAngle == targetFind) {
+                            tilesToChange.Add(i);
+                        }
+                    }
+
+                    if (tilesToChange.Count == 0) break;
+
+                    foreach (int i in tilesToChange) {
                         float originalAngleI = editor.levelData.angleData[i];
                         float dR = replace - find;
 
@@ -754,14 +760,16 @@ namespace QuickChart {
                         float deltaA = isCCW ? dR : -dR;
 
                         editor.levelData.angleData[i] = originalAngleI + deltaA;
-                        tilesToChange.Add(i);
-                        // Logger.Log($"{i}: {find} -> {replace} isCCW: {isCCW})");
+                        allChangedTiles.Add(i);
                     }
+
+                    editor.RemakePath();
                 }
 
-                if (tilesToChange.Count > 0) {
-                    editor.RemakePath();
-                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{tilesToChange.Count}개 변경!", $"{tilesToChange.Count} tiles changed!") + $"({string.Join(", ", tilesToChange)})</color>";
+                if (allChangedTiles.Count > 0) {
+                    var sortedTiles = new List<int>(allChangedTiles);
+                    sortedTiles.Sort();
+                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{allChangedTiles.Count}개 변경!", $"{allChangedTiles.Count} tiles changed!") + $" ({string.Join(", ", sortedTiles)})</color>";
                 } else {
                     _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
                 }
