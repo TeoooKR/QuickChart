@@ -723,7 +723,7 @@ namespace QuickChart {
                     for (int i = startTile; i <= endTile; i++) {
                         float currentAngle = (float) Math.Round(GetFloorRelativeAngle(i), 3);
 
-                        if (currentAngle == targetFind) {
+                        if (Mathf.Approximately(currentAngle, targetFind)) {
                             tilesToChange.Add(i);
                         }
                     }
