@@ -701,6 +701,11 @@ namespace QuickChart {
 
             if (!double.TryParse(_settings.ChangeAngleFind, out double findAngle)) return;
             if (!double.TryParse(_settings.ChangeAngleReplace, out double replaceAngle)) return;
+            
+            if (Mathf.Approximately((float)findAngle, (float)replaceAngle)) {
+                _changeAngleResultStr = "<color=#ffff88>" + GetTranslation("찾을 각도와 바꿀 각도가 같습니다.", "Find and replace angles are the same.") + "</color>";
+                return;
+            }
 
             using (new SaveStateScope(editor)) {
                 float find = (float) findAngle;
@@ -718,7 +723,6 @@ namespace QuickChart {
                     for (int i = startTile; i <= endTile; i++) {
                         float currentAngle = (float) Math.Round(GetFloorRelativeAngle(i), 3);
 
-                        // ReSharper disable once CompareOfFloatsByEqualityOperator
                         if (currentAngle == targetFind) {
                             tilesToChange.Add(i);
                         }
