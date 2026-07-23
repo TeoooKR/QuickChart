@@ -102,7 +102,6 @@ namespace QuickChart {
         }
         
         private static void OnGUI(UnityModManager.ModEntry modEntry) {
-            GUILayout.BeginVertical();
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("Language / 언어 설정:", GUILayout.ExpandWidth(false));
@@ -220,8 +219,6 @@ namespace QuickChart {
                     if (prevAutoTick != _autoSetCountdownTicks) _settings.AutoSetCountdownTicks = _autoSetCountdownTicks;
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
-                    GUILayout.EndVertical();
-                    
                     
             bool prevAllowBackward = _allowBackwardPaste;
             _allowBackwardPaste = GUILayout.Toggle(_allowBackwardPaste, GetTranslation("역방향 타일 붙여넣기 허용", "Allow Paste Backward Tiles"));
@@ -291,42 +288,22 @@ namespace QuickChart {
                     GUILayout.Space(32);
                     GUILayout.Label("<color=#888888><size=12>" +
                                     GetTranslation(
-                                        "v3.0.0 업데이트로 유턴 타일에서의 일시정지의 비트 수를 기존과 같은 박자를 유지하려면 +1 해야 합니다." +
-                                        "\nlegacyPause 옵션이 추가되었는데, legacyPause가 켜져있다면 예전 방식대로, 꺼져 있다면 새 로직처럼 작동합니다. 아래에서 현재 레벨의 legacyPause 여부를 확인할 수 있습니다." +
-                                        "\n" +
-                                        "\n버튼 기능" +
+                                        "버튼 기능" +
                                         "\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다." +
                                         "\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)" +
-                                        "\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다." +
-                                        "\n" +
-                                        "\nNote: legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacyPause를 끄는 현상이 있어서 만들었습니다.",
-                                        
-                                        "After the v3.0.0 update, you need to add +1 to the duration of pause which is on U-Turn tiles to keep the same timing as before." +
-                                        "\nA legacyPause option has been added. if it's on, it works the old way, if it's off, it works the new way. You can check the status of legacyPause below." +
-                                        "\n" +
-                                        "\nButtons" +
+                                        "\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다."
+                                        ,
+                                        "Buttons" +
                                         "\n  - ↑ (+1): Increases the pause duration on the U-Turn tile." +
                                         "\n  - ↓ (-1): Decreases the pause duration on the U-Turn tile. (Use this if you mistake)" +
-                                        "\n" +
-                                        "\nChanging the value with the arrow buttons will automatically turn off legacyPause." +
-                                        "\n" +
-                                        "\nNote: If you keep legacyPause on, you don't really need to change. However, this tool was made because the game sometimes turns off legacyPause."
-                                        ) + "</size></color>");
+                                        "</size></color>"));
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     if (!ADOBase.isEditingLevel) {
                         GUILayout.Label(GetTranslation("현재 레벨 에디터에 있지 않습니다.", "Not currently in the level editor."));
                     } else {
-                        GUILayout.BeginVertical();
-                        if (ADOBase.editor.levelData.legacyPause) {
-                            GUILayout.Label(GetTranslation(
-                                "legacyPause: 켜짐\n버튼을 클릭하면 '꺼짐'으로 변경됩니다.", 
-                                "legacyPause: on\nThis turns off when clicking the buttons."
-                            ));
-                        } else {
-                            GUILayout.Label(GetTranslation("legacyPause: 꺼짐 (최신)", "legacyPause: off (Latest)"));
-                        }
+                        
                         GUILayout.BeginHorizontal();
                         if (GUILayout.Button("↑", GUILayout.Width(64), GUILayout.Height(32))) {
                             ConvertLegacyPause(false);
@@ -334,11 +311,11 @@ namespace QuickChart {
                         if (GUILayout.Button("↓", GUILayout.Width(64), GUILayout.Height(32))) {
                             ConvertLegacyPause(true);
                         }
-                        GUILayout.EndHorizontal();
+
                         if (!string.IsNullOrEmpty(_legacyPauseResultStr)) {
                             GUILayout.Label(_legacyPauseResultStr);
                         }
-                        GUILayout.EndVertical(); 
+                        GUILayout.EndHorizontal();
                     }
                     GUILayout.EndHorizontal(); 
         }
@@ -696,7 +673,6 @@ namespace QuickChart {
                     }
                 }
 
-                editor.levelData.legacyPause = false;
                 if (changedTiles.Count > 0) editor.customLevel.ApplyEventsToFloors(editor.floors);
             }
             
