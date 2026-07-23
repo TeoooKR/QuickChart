@@ -61,19 +61,18 @@ namespace QuickChart {
                 editor.RemakePath();
                 var changed = false;
 
-                var shiftedPT = editor.GetFloorEvents(floorID + 2, LevelEventType.PositionTrack);
-                if (shiftedPT.Count > 0) {
-                    editor.RemoveEvent(shiftedPT[0]);
-                    changed = true;
-                }
-
                 var pauseEventsOnCurrent = editor.GetFloorEvents(floorID, LevelEventType.Pause);
+                var shiftedPT = editor.GetFloorEvents(floorID + 2, LevelEventType.PositionTrack);
+
                 if (pauseEventsOnCurrent.Count > 0) {
                     changed |= Main.UpdateCountdownTicks(pauseEventsOnCurrent[0], floorID);
-                }
-
-                if (Main._autoInsertPositionTrack) {
-                    if (pauseEventsOnCurrent.Count > 0) {
+                    
+                    if (shiftedPT.Count > 0) {
+                        editor.RemoveEvent(shiftedPT[0]);
+                        changed = true;
+                    }
+                    
+                    if (Main._autoInsertPositionTrack) {
                         changed |= Main.InsertPositionTrack(floorID + 1);
 
                         var moveTracks = editor.GetFloorEvents(floorID, LevelEventType.MoveTrack);
