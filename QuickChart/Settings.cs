@@ -23,6 +23,13 @@ namespace QuickChart {
         public bool AllowBackwardPaste = true;
         public bool DisableMovePageShortcuts = false;
         
+        public bool AutoInsertTwirl = false;
+        
+        public string ChangeAngleStartTile = "";
+        public string ChangeAngleEndTile = "";
+        public string ChangeAngleFind = "30";
+        public string ChangeAngleReplace = "22.5";
+        
         public override void Save(UnityModManager.ModEntry modEntry) {
             Save(this, modEntry);
         }

@@ -2,7 +2,7 @@
   "Id": "QuickChart",
   "DisplayName": "QuickChart",
   "Author": "테오",
-  "Version": "2.1.0",
+  "Version": "2.2.0",
   "AssemblyName": "QuickChart.dll",
   "EntryMethod": "QuickChart.Main.Setup",
   "HomePage": "https://github.com/TeoooKR/QuickChart",

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 using ADOFAI;
 using ADOFAI.Editor;
@@ -22,6 +23,7 @@ namespace QuickChart {
         
         private static bool _isKorean = true;
         private static string _legacyPauseResultStr = "";
+        private static string _changeAngleResultStr = "";
 
         readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
             BindingFlags.NonPublic | BindingFlags.Instance);
@@ -49,9 +51,8 @@ namespace QuickChart {
             
         public static bool _allowBackwardPaste = true;
         public static bool _disableMovePageShortcuts = true;
-
+        public static bool _autoInsertTwirl = false;
         
-
         public static void Setup(UnityModManager.ModEntry modEntry) {
             Logger = modEntry.Logger;
             _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
@@ -78,11 +79,11 @@ namespace QuickChart {
 
             _allowBackwardPaste = _settings.AllowBackwardPaste;
             _disableMovePageShortcuts = _settings.DisableMovePageShortcuts;
+            _autoInsertTwirl = _settings.AutoInsertTwirl;
             
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = OnGUI;
             modEntry.OnSaveGUI = OnSaveGUI;
-            modEntry.OnUpdate = OnUpdate;
         }
 
         private static bool OnToggle(UnityModManager.ModEntry modEntry, bool value) {
@@ -101,7 +102,6 @@ namespace QuickChart {
         }
         
         private static void OnGUI(UnityModManager.ModEntry modEntry) {
-            GUILayout.BeginVertical();
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("Language / 언어 설정:", GUILayout.ExpandWidth(false));
@@ -219,8 +219,6 @@ namespace QuickChart {
                     if (prevAutoTick != _autoSetCountdownTicks) _settings.AutoSetCountdownTicks = _autoSetCountdownTicks;
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
-                    GUILayout.EndVertical();
-                    
                     
             bool prevAllowBackward = _allowBackwardPaste;
             _allowBackwardPaste = GUILayout.Toggle(_allowBackwardPaste, GetTranslation("역방향 타일 붙여넣기 허용", "Allow Paste Backward Tiles"));
@@ -236,8 +234,52 @@ namespace QuickChart {
 
                 SetMovePageShortcuts(keybindManager, !_disableMovePageShortcuts);
             }
+            
+            bool prevAutoInsertTwirl = _autoInsertTwirl;
+            _autoInsertTwirl = GUILayout.Toggle(_autoInsertTwirl, GetTranslation("타일 180° 초과 시 소용돌이 자동 설치 (내각 고정)", "Auto-insert Twirl when tile angle > 180° (Always interior angle)"));
+            if (prevAutoInsertTwirl != _autoInsertTwirl) _settings.AutoInsertTwirl = _autoInsertTwirl;
+            
+            GUILayout.Space(8);
+
+            GUILayout.BeginHorizontal();
+            GUILayout.Space(16);
+            GUILayout.Label(GetTranslation("<b>각도 바꾸기</b>", "<b>Change Angle</b>"));
+            GUILayout.FlexibleSpace();
+            GUILayout.EndHorizontal();
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUILayout.Label(GetTranslation("적용할 타일 범위 (선택 시 자동 입력): ", "Tile Range (auto filled on selection): "));
+                    _settings.ChangeAngleStartTile = GUILayout.TextField(_settings.ChangeAngleStartTile, GUILayout.Width(40));
+                    GUILayout.Label(" ~ ");
+                    _settings.ChangeAngleEndTile = GUILayout.TextField(_settings.ChangeAngleEndTile, GUILayout.Width(40));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
                     
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUILayout.Label(GetTranslation("찾을 각도: ", "Find Angle: "));
+                    _settings.ChangeAngleFind = GUILayout.TextField(_settings.ChangeAngleFind, GUILayout.Width(40));
+                    GUILayout.Label(GetTranslation(" -> 바꿀 각도: ", " -> Change Angle to: "));
+                    _settings.ChangeAngleReplace = GUILayout.TextField(_settings.ChangeAngleReplace, GUILayout.Width(40));
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUI.enabled = ADOBase.isEditingLevel;
+                    if (GUILayout.Button(GetTranslation("실행", "Execute"), GUILayout.Width(100))) {
+                        ExecuteAngleChange();
+                    }
+                    if (!string.IsNullOrEmpty(_changeAngleResultStr)) {
+                        GUILayout.Label(_changeAngleResultStr);
+                    }
+                    GUI.enabled = true;
+                    GUILayout.FlexibleSpace();
+                    GUILayout.EndHorizontal();
+            
                     
+            GUILayout.Space(8);
+
             GUILayout.BeginHorizontal();
             GUILayout.Space(16);
             GUILayout.Label(GetTranslation("<b>레거시 일시정지 최신화</b>", "<b>Convert Legacy Pause</b>"));
@@ -246,42 +288,22 @@ namespace QuickChart {
                     GUILayout.Space(32);
                     GUILayout.Label("<color=#888888><size=12>" +
                                     GetTranslation(
-                                        "v3.0.0 업데이트로 유턴 타일에서의 일시정지의 비트 수를 기존과 같은 박자를 유지하려면 +1 해야 합니다." +
-                                        "\nlegacyPause 옵션이 추가되었는데, legacyPause가 켜져있다면 예전 방식대로, 꺼져 있다면 새 로직처럼 작동합니다. 아래에서 현재 레벨의 legacyPause 여부를 확인할 수 있습니다." +
-                                        "\n" +
-                                        "\n버튼 기능" +
+                                        "버튼 기능" +
                                         "\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다." +
                                         "\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)" +
-                                        "\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다." +
-                                        "\n" +
-                                        "\nNote: legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacyPause를 끄는 현상이 있어서 만들었습니다.",
-                                        
-                                        "After the v3.0.0 update, you need to add +1 to the duration of pause which is on U-Turn tiles to keep the same timing as before." +
-                                        "\nA legacyPause option has been added. if it's on, it works the old way, if it's off, it works the new way. You can check the status of legacyPause below." +
-                                        "\n" +
-                                        "\nButtons" +
+                                        "\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다."
+                                        ,
+                                        "Buttons" +
                                         "\n  - ↑ (+1): Increases the pause duration on the U-Turn tile." +
                                         "\n  - ↓ (-1): Decreases the pause duration on the U-Turn tile. (Use this if you mistake)" +
-                                        "\n" +
-                                        "\nChanging the value with the arrow buttons will automatically turn off legacyPause." +
-                                        "\n" +
-                                        "\nNote: If you keep legacyPause on, you don't really need to change. However, this tool was made because the game sometimes turns off legacyPause."
-                                        ) + "</size></color>");
+                                        "</size></color>"));
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     if (!ADOBase.isEditingLevel) {
                         GUILayout.Label(GetTranslation("현재 레벨 에디터에 있지 않습니다.", "Not currently in the level editor."));
                     } else {
-                        GUILayout.BeginVertical();
-                        if (ADOBase.editor.levelData.legacyPause) {
-                            GUILayout.Label(GetTranslation(
-                                "legacyPause: 켜짐\n버튼을 클릭하면 '꺼짐'으로 변경됩니다.", 
-                                "legacyPause: on\nThis turns off when clicking the buttons."
-                            ));
-                        } else {
-                            GUILayout.Label(GetTranslation("legacyPause: 꺼짐 (최신)", "legacyPause: off (Latest)"));
-                        }
+                        
                         GUILayout.BeginHorizontal();
                         if (GUILayout.Button("↑", GUILayout.Width(64), GUILayout.Height(32))) {
                             ConvertLegacyPause(false);
@@ -289,11 +311,11 @@ namespace QuickChart {
                         if (GUILayout.Button("↓", GUILayout.Width(64), GUILayout.Height(32))) {
                             ConvertLegacyPause(true);
                         }
-                        GUILayout.EndHorizontal();
+
                         if (!string.IsNullOrEmpty(_legacyPauseResultStr)) {
                             GUILayout.Label(_legacyPauseResultStr);
                         }
-                        GUILayout.EndVertical(); 
+                        GUILayout.EndHorizontal();
                     }
                     GUILayout.EndHorizontal(); 
         }
@@ -316,31 +338,24 @@ namespace QuickChart {
             _settings.Save(modEntry);
         }
         
-        private static void OnUpdate(UnityModManager.ModEntry modEntry, float deltaTime) {
-            if (!_isEnabled) return;
+        public static void OnUpdate(scnEditor editor) {
+            if(!ADOBase.controller.paused) return;
+            float deltaTime = Time.unscaledDeltaTime;
 
             bool pauseCtrl = !_swapShortcuts;
             bool pauseAlt = _swapShortcuts;
             bool speedCtrl = _swapShortcuts;
             bool speedAlt = !_swapShortcuts;
-            //
-            // if (CheckShortcut(KeyCode.F4)) {
-            //     Logger.Log($"specialColor1: ${ADOBase.editor.selectedFloors[0].specialColor1}");
-            //     Logger.Log($"specialColor2: ${ADOBase.editor.selectedFloors[0].specialColor2}");
-            //     Logger.Log($"specialColorPulse: ${ADOBase.editor.selectedFloors[0].specialColorPulse}");
-            //     Logger.Log($"길 색상 유형: ${ADOBase.editor.selectedFloors[0].specialColorType}");
-            //
-            //     Logger.Log($"길 스타일: ${ADOBase.editor.selectedFloors[0].initialTrackStyle}");
-            //     Logger.Log($"글로우 강도: ${ADOBase.editor.selectedFloors[0].glowMultiplier * 100}");
-            //
-            // }
+            
+
+
             if (_pauseShortcutEnabled) {
-                if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(1);
-                if (CheckShortcut(KeyCode.DownArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(-1);
+                if (CheckShortcut(KeyCode.UpArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(editor, 1);
+                if (CheckShortcut(KeyCode.DownArrow, ctrl: pauseCtrl, alt: pauseAlt)) HandlePause(editor, -1);
             }
             if (_speedShortcutEnabled) {
-                if (CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(2.0f, true);
-                if (CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(0.5f, true);
+                if (CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(editor, 2.0f, true);
+                if (CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt)) HandleSetSpeed(editor, 0.5f, true);
 
                 bool up = CheckShortcut(KeyCode.UpArrow, ctrl: speedCtrl, alt: speedAlt, shift: true, useKeyDown: false);
                 bool down = CheckShortcut(KeyCode.DownArrow, ctrl: speedCtrl, alt: speedAlt, shift: true, useKeyDown: false);
@@ -357,14 +372,14 @@ namespace QuickChart {
                     float delta = (currentDir == 1) ? _bpmDelta : -_bpmDelta;
 
                     if (_keyHoldTimer == 0f) {
-                        HandleSetSpeed(delta, false);
+                        HandleSetSpeed(editor, delta, false);
                         _keyHoldTimer += deltaTime;
                     } else {
                         _keyHoldTimer += deltaTime;
                         if (_keyHoldTimer > 0.4f) {
                             _repeatTimer += deltaTime;
                             if (_repeatTimer > 0.05f) {
-                                HandleSetSpeed(delta, false);
+                                HandleSetSpeed(editor, delta, false);
                                 _repeatTimer = 0f;
                             }
                         }
@@ -377,97 +392,90 @@ namespace QuickChart {
             }
         }
         
-        public static void UpdateCountdownTicks(LevelEvent pauseEvent, int floorID, int delta = 0) {
-            if (!_autoSetCountdownTicks || pauseEvent == null) return;
+        public static bool UpdateCountdownTicks(LevelEvent pauseEvent, int floorID) {
+            if (!_autoSetCountdownTicks || pauseEvent == null) return false;
 
             var data = pauseEvent.GetData();
             float duration = Convert.ToSingle(data["duration"]);
-            decimal tileBeats = (decimal)GetFloorRelativeAngle(floorID) / 180m;
-            decimal totalBeats = tileBeats + (decimal)duration;
+            double tileBeats = GetFloorRelativeAngle(floorID) / 180;
+            double totalBeats = tileBeats + duration;
 
-            if (IsFloorRelativeAngle360(floorID)) {
-                totalBeats -= 1;
-            }
-            
-            if (totalBeats >= 4m && delta >= 0) {
-                data["countdownTicks"] = 4;
-            } else if (totalBeats < 4m && delta < 0) {
-                data["countdownTicks"] = 0;
-            }
+            data["countdownTicks"] = totalBeats >= 4 ? 4 : 0;
+            return true;
         }
         
-        private static void HandlePause(int delta) {
-            var editor = scnEditor.instance;
-            if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
-            editor.SaveState();
-            int id = editor.selectedFloors[0].seqID;
-            var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause)?.Find(e => true);
-            
-            float finalDuration;
-            bool shouldShowPanel;
+        private static void HandlePause(scnEditor editor, int delta) {
+            if (!editor.SelectionIsSingle()) return;
 
-            if (selectedEvent == null) {
-                if (delta < 0) return;
-                AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
-                selectedEvent = editor.events[editor.events.Count - 1];
+            using (new SaveStateScope(editor)) {
+                int id = editor.selectedFloors[0].seqID;
+                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.Pause).FirstOrDefault();
                 
-                finalDuration = delta;
-                selectedEvent.GetData()["duration"] = finalDuration;
-                shouldShowPanel = true;
-            } else {
-                var data = selectedEvent.GetData();
-                float currentDuration = (float)data["duration"];
-                finalDuration = currentDuration + delta;
-                
-                if (finalDuration > 0) {
-                    data["duration"] = finalDuration;
+                float finalDuration;
+                bool shouldShowPanel;
+
+                if (selectedEvent == null) {
+                    if (delta < 0) return;
+                    AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
+                    selectedEvent = editor.events[editor.events.Count - 1];
+                    
+                    finalDuration = delta;
+                    selectedEvent.GetData()["duration"] = finalDuration;
                     shouldShowPanel = true;
                 } else {
-                    var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                    var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
-                    List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
-                    if (_autoInsertPositionTrack && nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
-                    if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
-                    editor.RemoveEvents(eventsToRemove);
-                    shouldShowPanel = false;
-                    finalDuration = 0;
-                }
-            }
-
-            if (shouldShowPanel) {
-                if (_autoInsertPositionTrack) {
-                    var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
-                    if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
-                    InsertPositionTrack(id + 1);
-                }
-
-                var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
-                if (moveTracks.Count > 0) {
-                    var mtData = moveTracks[0].GetData();
-                    decimal tileBeats = (decimal)GetFloorRelativeAngle(id) / 180m;
-                    mtData["duration"] = (float)(tileBeats + (decimal)finalDuration);
-
-                    if (_adjustPositionTrackWithPause) {
-                        float absoluteAngle = editor.levelData.angleData[id];
-                        Vector2 baseOffset = new Vector2(Mathf.Cos(absoluteAngle * Mathf.Deg2Rad), Mathf.Sin(absoluteAngle * Mathf.Deg2Rad));
-                        mtData["positionOffset"] = baseOffset * (finalDuration * _positionTrackUnit);
+                    var data = selectedEvent.GetData();
+                    float currentDuration = (float)data["duration"];
+                    finalDuration = currentDuration + delta;
+                    
+                    if (finalDuration > 0) {
+                        data["duration"] = finalDuration;
+                        shouldShowPanel = true;
+                    } else {
+                        var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                        var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+                        List<LevelEvent> eventsToRemove = new List<LevelEvent> { selectedEvent };
+                        if (_autoInsertPositionTrack && nextTrackList.Count > 0) eventsToRemove.Add(nextTrackList[0]);
+                        if (moveTracks.Count > 0) eventsToRemove.Add(moveTracks[0]);
+                        editor.RemoveEvents(eventsToRemove);
+                        shouldShowPanel = false;
+                        finalDuration = 0;
                     }
                 }
 
-                if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id, delta);
-                editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
-            }
+                if (shouldShowPanel) {
+                    if (_autoInsertPositionTrack) {
+                        var nextTrackList = editor.GetFloorEvents(id + 1, LevelEventType.PositionTrack);
+                        if (nextTrackList.Count > 0) editor.RemoveEvents(new List<LevelEvent> { nextTrackList[0] });
+                        InsertPositionTrack(id + 1);
+                    }
 
-            editor.ApplyEventsToFloors();
-            editor.levelEventsPanel.ShowTabsForFloor(id);
-            RemoveTrashUndos(3); 
+                    var moveTracks = editor.GetFloorEvents(id, LevelEventType.MoveTrack);
+                    if (moveTracks.Count > 0) {
+                        var mtData = moveTracks[0].GetData();
+                        double tileBeats = GetFloorRelativeAngle(id) / 180;
+                        mtData["duration"] = (float) (tileBeats + finalDuration);
+
+                        if (_adjustPositionTrackWithPause) {
+                            float absoluteAngle = editor.levelData.angleData[id];
+                            Vector2 baseOffset = new Vector2(Mathf.Cos(absoluteAngle * Mathf.Deg2Rad), Mathf.Sin(absoluteAngle * Mathf.Deg2Rad));
+                            mtData["positionOffset"] = baseOffset * (finalDuration * _positionTrackUnit);
+                        }
+                    }
+
+                    if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id);
+                    editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
+                }
+
+                editor.ApplyEventsToFloors();
+                editor.levelEventsPanel.ShowTabsForFloor(id);
+            }
         }
 
-        public static void InsertPositionTrack(int floorID) {
+        public static bool InsertPositionTrack(int floorID) {
             var editor = scnEditor.instance;
-            if (floorID - 1 >= editor.levelData.angleData.Count) return; // 없는 타일이면 리턴
-            if (IsFloorRelativeAngle360(floorID - 1)) return; // 전 타일이 360도면 리턴
-            if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return; // 길 위치가 있으면 리턴
+            if (floorID - 1 >= editor.levelData.angleData.Count) return false; 
+            if (IsFloorRelativeAngle360(floorID - 1)) return false;
+            if (editor.GetFloorEvents(floorID, LevelEventType.PositionTrack).Count > 0) return false;
             float absoluteAngle = editor.levelData.angleData[floorID - 1];
             float radian = absoluteAngle * Mathf.Deg2Rad;
             Vector2 baseOffset = new Vector2(Mathf.Cos(radian), Mathf.Sin(radian));
@@ -484,22 +492,22 @@ namespace QuickChart {
             var data = lastEvent.GetData();
             data["positionOffset"] = baseOffset * (finalMultiplier * _positionTrackUnit);
             lastEvent.disabled["positionOffset"] = false;
-            editor.ApplyEventsToFloors();
+            return true;
         }
         
-        public static void InsertMoveTrack(int floorID) {
+        public static bool InsertMoveTrack(int floorID) {
             var editor = ADOBase.editor;
-            if (floorID >= editor.floors.Count - 1) return; // 없는 타일이면 리턴
-            if (IsFloorRelativeAngle360(floorID)) return; // 360도 타일이면 리턴
-            if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return; // 길 이동이 있으면 리턴
+            if (floorID >= editor.floors.Count - 1) return false;
+            if (IsFloorRelativeAngle360(floorID)) return false;
+            if (editor.GetFloorEvents(floorID, LevelEventType.MoveTrack).Count > 0) return false;
             
-            decimal tileBeats = (decimal)GetFloorRelativeAngle(floorID) / 180m;
-            decimal beats = tileBeats;
+            double tileBeats = GetFloorRelativeAngle(floorID) / 180;
+            double beats = tileBeats;
             var pause = editor.GetFloorEvents(floorID, LevelEventType.Pause);
             float pauseDuration = 0f;
             if (pause.Count > 0) {
                 pauseDuration = Convert.ToSingle(pause[0].GetData()["duration"]);
-                beats += (decimal)pauseDuration;
+                beats += pauseDuration;
             }
             AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.MoveTrack });
             
@@ -536,82 +544,88 @@ namespace QuickChart {
             } catch {
                 data["ease"] = Enum.Parse(easeType, "Linear");
             }
-            editor.ApplyEventsToFloors();
-            scnEditor.instance.RemakePath();
+            scnEditor.instance.RemakePath(false);
             editor.levelEventsPanel.ShowTabsForFloor(floorID);
             editor.levelEventsPanel.ShowPanel(LevelEventType.MoveTrack);
-            
-            RemoveTrashUndos();
+            return true;
         }
         
-        private static void HandleSetSpeed(float value, bool calculateByMultiplier) {
-            var editor = scnEditor.instance;
-            if (!editor.SelectionIsSingle()) return; // 선택한 타일이 하나여야 통과
-            editor.SaveState();
-            int floorID = editor.selectedFloors[0].seqID;
-            var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed)?.Find(e => true);
-            float prevTileSpeed = (floorID > 0) ? editor.floors[floorID - 1].speed : 1f;
-            float prevBpm = editor.levelData.bpm * prevTileSpeed;
-            bool shouldShowPanel;
-            if (selectedEvent == null) {
-                AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.SetSpeed });
-                var lastEvent = editor.events[editor.events.Count - 1];
-                var data = lastEvent.GetData();
-                if (calculateByMultiplier) {
-                    data["speedType"] = SpeedType.Multiplier;
-                    data["bpmMultiplier"] = value;
+        private static void HandleSetSpeed(scnEditor editor, float value, bool calculateByMultiplier) {
+            if (!editor.SelectionIsSingle()) return;
+
+            using (new SaveStateScope(editor)) {
+                int floorID = editor.selectedFloors[0].seqID;
+                var selectedEvent = editor.GetSelectedFloorEvents(LevelEventType.SetSpeed).FirstOrDefault();
+                float prevTileSpeed = (floorID > 0) ? editor.floors[floorID - 1].speed : 1f;
+                float prevBpm = editor.levelData.bpm * prevTileSpeed;
+                bool shouldShowPanel;
+                if (selectedEvent == null) {
+                    AddEventMethod.Invoke(editor, new object[] {
+                        floorID, LevelEventType.SetSpeed
+                    });
+                    var lastEvent = editor.events[editor.events.Count - 1];
+                    var data = lastEvent.GetData();
+                    if (calculateByMultiplier) {
+                        data["speedType"] = SpeedType.Multiplier;
+                        data["bpmMultiplier"] = value;
+                    } else {
+                        data["beatsPerMinute"] = Mathf.Max(0.1f, prevBpm + value);
+                    }
+                    shouldShowPanel = true;
                 } else {
-                    data["beatsPerMinute"] = Mathf.Max(0.1f, prevBpm + value);
-                }
-                shouldShowPanel = true;
-            } else {
-                var data = selectedEvent.GetData();
-                var currentType = data["speedType"];
-                bool isBpmMode = currentType.ToString() == "Bpm" || currentType.ToString() == "0";
-                if (calculateByMultiplier) {
-                    string targetKey = isBpmMode ? "beatsPerMinute" : "bpmMultiplier";
-                    float currentVal = Convert.ToSingle(data[targetKey]);
-                    float nextVal = currentVal * value;
-                    if (nextVal > 0f) data[targetKey] = nextVal;
-                } else {
-                    float currentBpm = isBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
-                    decimal preciseBpm = (decimal) currentBpm + (decimal) value;
-                    if (preciseBpm > 0m) {
-                        data["speedType"] = SpeedType.Bpm;
-                        data["beatsPerMinute"] = (float) preciseBpm;
+                    var data = selectedEvent.GetData();
+                    var currentType = data["speedType"];
+                    bool isBpmMode = currentType.ToString() == "Bpm" || currentType.ToString() == "0";
+                    if (calculateByMultiplier) {
+                        string targetKey = isBpmMode ? "beatsPerMinute" : "bpmMultiplier";
+                        float currentVal = Convert.ToSingle(data[targetKey]);
+                        float nextVal = currentVal * value;
+                        if (nextVal > 0f) data[targetKey] = nextVal;
+                    } else {
+                        float currentBpm = isBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
+                        float preciseBpm = currentBpm + value;
+                        if (preciseBpm > 0) {
+                            data["speedType"] = SpeedType.Bpm;
+                            data["beatsPerMinute"] = preciseBpm;
+                        }
+                    }
+                    bool nowBpmMode = data["speedType"].ToString() == "Bpm" || data["speedType"].ToString() == "0";
+                    float finalSpeed = nowBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
+                    if (Mathf.Approximately(finalSpeed, prevBpm)) {
+                        editor.RemoveEvents(new List<LevelEvent> {
+                            selectedEvent
+                        });
+                        shouldShowPanel = false;
+                    } else {
+                        shouldShowPanel = true;
                     }
                 }
-                bool nowBpmMode = data["speedType"].ToString() == "Bpm" || data["speedType"].ToString() == "0";
-                float finalSpeed = nowBpmMode ? Convert.ToSingle(data["beatsPerMinute"]) : prevBpm * Convert.ToSingle(data["bpmMultiplier"]);
-                if (Mathf.Approximately(finalSpeed, prevBpm)) {
-                    editor.RemoveEvents(new List<LevelEvent> { selectedEvent });
-                    shouldShowPanel = false;
-                } else {
-                    shouldShowPanel = true;
+                editor.ApplyEventsToFloors();
+                editor.levelEventsPanel.ShowTabsForFloor(floorID);
+                if (shouldShowPanel) {
+                    var targetEvent = selectedEvent ?? editor.events[editor.events.Count - 1];
+                    editor.levelEventsPanel.ShowPanel(LevelEventType.SetSpeed);
+                    editor.levelEventsPanel.UpdatePropertyText(targetEvent, "beatsPerMinute");
+                    editor.levelEventsPanel.UpdatePropertyText(targetEvent, "bpmMultiplier");
+                    editor.levelEventsPanel.UpdatePropertyText(targetEvent, "speedType");
                 }
             }
-            editor.ApplyEventsToFloors();
-            editor.levelEventsPanel.ShowTabsForFloor(floorID);
-            if (shouldShowPanel) {
-                var targetEvent = selectedEvent ?? editor.events[editor.events.Count - 1];
-                editor.levelEventsPanel.ShowPanel(LevelEventType.SetSpeed);
-                editor.levelEventsPanel.UpdatePropertyText(targetEvent, "beatsPerMinute");
-                editor.levelEventsPanel.UpdatePropertyText(targetEvent, "bpmMultiplier");
-                editor.levelEventsPanel.UpdatePropertyText(targetEvent, "speedType");
-            }
-            RemoveTrashUndos();
         }
 
         public static double GetFloorRelativeAngle(int floorID) {
             var editor = ADOBase.editor;
             if (editor == null || floorID < 0 || floorID >= editor.floors.Count - 1) return 0;
-            ADOBase.lm.CalculateFloorAngleLengths();
             var floor = editor.floors[floorID];
             return floor.angleLength * Mathf.Rad2Deg;
         }
 
         private static bool IsFloorRelativeAngle360(int floorID) => 
             Mathf.Approximately((float)GetFloorRelativeAngle(floorID), 360f);
+        
+        public static void UpdateChangeAngleTileRange(int startTile, int endTile) {
+            _settings.ChangeAngleStartTile = startTile.ToString();
+            _settings.ChangeAngleEndTile = endTile.ToString();
+        }
         
         private static bool CheckShortcut(KeyCode key, bool ctrl = false, bool alt = false, bool shift = false, bool useKeyDown = true) {
             bool keyCheck = useKeyDown ? Input.GetKeyDown(key) : Input.GetKey(key);
@@ -622,49 +636,115 @@ namespace QuickChart {
             return isCtrlPressed == ctrl && isAltPressed == alt && isShiftPressed == shift;
         }
         
-        public static void RemoveTrashUndos(int amount = 2) {
-            var editor = scnEditor.instance;
-            int count = editor.undoStates.Count;
-            if (count >= amount) {
-                editor.undoStates.RemoveRange(count - amount, amount);
-            } else if (count > 0) {
-                editor.undoStates.RemoveAt(count - 1);
-            }
-        }
-        
         private static void ConvertLegacyPause(bool isDown) {
             scnEditor editor = ADOBase.editor;
-            var angleData = editor.levelData.angleData;
-            int tiles = angleData.Count;
+
             List<int> changedTiles = new List<int>();
-            
-            editor.SaveState();
 
-            for (int i = 0; i < tiles - 1; i++) {
-                if (Mathf.Approximately(Mathf.Abs(angleData[i + 1] - angleData[i]), 180f)) {
-                    var pauseEvents = editor.GetFloorEvents(i + 1, LevelEventType.Pause);
-            
-                    if (pauseEvents != null && pauseEvents.Count > 0) {
-                        changedTiles.Add(i + 1);
-                
-                        float currentDuration = Convert.ToSingle(pauseEvents[0].GetData()["duration"]);
-                        decimal preciseCalc = isDown ? (decimal)currentDuration - 1m : (decimal)currentDuration + 1m;
-                        pauseEvents[0].GetData()["duration"] = (float)preciseCalc;
+            using (new SaveStateScope(editor)) {
 
-                        if (editor.selectedFloors.Count > 0 && editor.selectedFloors[0].seqID == i + 1) {
-                            editor.levelEventsPanel.UpdatePropertyText(pauseEvents[0], "duration");
+                var angleData = editor.levelData.angleData;
+                int tiles = angleData.Count;
+
+
+                for (int i = 0; i < tiles - 1; i++) {
+                    if (Mathf.Approximately(Mathf.Abs(angleData[i + 1] - angleData[i]), 180f)) {
+                        var pauseEvents = editor.GetFloorEvents(i + 1, LevelEventType.Pause);
+
+                        if (pauseEvents != null && pauseEvents.Count > 0) {
+                            changedTiles.Add(i + 1);
+
+                            float currentDuration = Convert.ToSingle(pauseEvents[0].GetData()["duration"]);
+                            float preciseCalc = isDown ? currentDuration - 1 : currentDuration + 1;
+                            pauseEvents[0].GetData()["duration"] = preciseCalc;
+
+                            if (editor.selectedFloors.Count > 0 && editor.selectedFloors[0].seqID == i + 1) {
+                                editor.levelEventsPanel.UpdatePropertyText(pauseEvents[0], "duration");
+                            }
                         }
                     }
                 }
+
+                if (changedTiles.Count > 0) editor.customLevel.ApplyEventsToFloors(editor.floors);
+            }
+            
+            if (changedTiles.Count > 0) {
+                _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation($"{changedTiles.Count}개 변경!", $"{changedTiles.Count} tiles changed!") + $"({string.Join(", ", changedTiles)})</color>";
+            } else {
+                _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
+            }
+        }
+
+        private static void ExecuteAngleChange() {
+            scnEditor editor = ADOBase.editor;  
+            
+            int maxTileIndex = editor.floors.Count - 1;
+
+            if (string.IsNullOrEmpty(_settings.ChangeAngleStartTile) || !int.TryParse(_settings.ChangeAngleStartTile, out int startTile)) 
+                startTile = 1;
+
+            if (string.IsNullOrEmpty(_settings.ChangeAngleEndTile) || !int.TryParse(_settings.ChangeAngleEndTile, out int endTile)) 
+                endTile = maxTileIndex - 1;
+
+            startTile = Mathf.Clamp(startTile, 1, maxTileIndex - 1);
+            endTile = Mathf.Clamp(endTile, 1, maxTileIndex - 1);
+            
+            if (endTile < startTile) return;
+
+            if (!double.TryParse(_settings.ChangeAngleFind, out double findAngle)) return;
+            if (!double.TryParse(_settings.ChangeAngleReplace, out double replaceAngle)) return;
+            
+            if (Mathf.Approximately((float)findAngle, (float)replaceAngle)) {
+                _changeAngleResultStr = "<color=#ffff88>" + GetTranslation("찾을 각도와 바꿀 각도가 같습니다.", "Find and replace angles are the same.") + "</color>";
+                return;
             }
 
-            editor.levelData.legacyPause = false;
+            using (new SaveStateScope(editor)) {
+                float find = (float) findAngle;
+                float replace = (float) replaceAngle;
+                float targetFind = (float) Math.Round(find, 3);
 
-            if (changedTiles.Count > 0) {
-                _legacyPauseResultStr = GetTranslation($"{changedTiles.Count}개 변경!", $"{changedTiles.Count} tiles changed!") + $"({string.Join(", ", changedTiles)})";
-            } else {
-                RemoveTrashUndos(1);
-                _legacyPauseResultStr = GetTranslation("0개 변경!", "0 tiles changed!");
+                HashSet<int> allChangedTiles = new HashSet<int>();
+                int totalIterations = 0;
+                const int maxIterations = 100;
+
+                while (totalIterations < maxIterations) {
+                    totalIterations++;
+
+                    List<int> tilesToChange = new List<int>();
+                    for (int i = startTile; i <= endTile; i++) {
+                        float currentAngle = (float) Math.Round(GetFloorRelativeAngle(i), 3);
+
+                        if (Mathf.Approximately(currentAngle, targetFind)) {
+                            tilesToChange.Add(i);
+                        }
+                    }
+
+                    if (tilesToChange.Count == 0) break;
+
+                    foreach (int i in tilesToChange) {
+                        float originalAngleI = editor.levelData.angleData[i];
+                        float dR = replace - find;
+
+                        var floor = editor.floors[i];
+                        bool isCCW = floor.isCCW;
+
+                        float deltaA = isCCW ? dR : -dR;
+
+                        editor.levelData.angleData[i] = originalAngleI + deltaA;
+                        allChangedTiles.Add(i);
+                    }
+
+                    editor.RemakePath();
+                }
+
+                if (allChangedTiles.Count > 0) {
+                    var sortedTiles = new List<int>(allChangedTiles);
+                    sortedTiles.Sort();
+                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{allChangedTiles.Count}개 변경!", $"{allChangedTiles.Count} tiles changed!") + $" ({string.Join(", ", sortedTiles)})</color>";
+                } else {
+                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
+                }
             }
         }
     }
