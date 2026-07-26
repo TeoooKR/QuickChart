@@ -392,7 +392,7 @@ namespace QuickChart {
             }
         }
         
-        public static bool UpdateCountdownTicks(LevelEvent pauseEvent, int floorID, int delta = 0) {
+        public static bool UpdateCountdownTicks(LevelEvent pauseEvent, int floorID) {
             if (!_autoSetCountdownTicks || pauseEvent == null) return false;
 
             var data = pauseEvent.GetData();
@@ -400,15 +400,7 @@ namespace QuickChart {
             double tileBeats = GetFloorRelativeAngle(floorID) / 180;
             double totalBeats = tileBeats + duration;
 
-            if (IsFloorRelativeAngle360(floorID)) {
-                totalBeats -= 1;
-            }
-            
-            if (totalBeats >= 4 && delta >= 0) {
-                data["countdownTicks"] = 4;
-            } else if (totalBeats < 4 && delta < 0) {
-                data["countdownTicks"] = 0;
-            }
+            data["countdownTicks"] = totalBeats >= 4 ? 4 : 0;
             return true;
         }
         
@@ -470,7 +462,7 @@ namespace QuickChart {
                         }
                     }
 
-                    if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id, delta);
+                    if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id);
                     editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
                 }
 
