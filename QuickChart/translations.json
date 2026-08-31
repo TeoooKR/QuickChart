@@ -35,8 +35,8 @@
         "zh": ""
     },
     "enable_speed_shortcut": {
-        "ko": "속도 설정 단축키 활성화 ",
-        "en": "Enable Set Speed Shortcut ",
+        "ko": "속도 설정 단축키 활성화",
+        "en": "Enable Set Speed Shortcut",
         "zh": ""
     },
     "bpm_change_amount": {
@@ -51,7 +51,7 @@
     },
     "scale_position_with_pause": {
         "ko": "비트 수에 따라 길 위치 배수 적용",
-        "en": "Scale Position offset with Pause duration",
+        "en": "Scale Position Track offset with Pause duration",
         "zh": ""
     },
     "auto_set_countdown_ticks": {
@@ -66,7 +66,7 @@
     },
     "disable_move_page_shortcuts": {
         "ko": "대괄호([, ]) 페이지 이동 단축키 비활성화",
-        "en": "Disable Move Page Shortcuts ([, ])",
+        "en": "Disable Page Movement Shortcuts ([, ])",
         "zh": ""
     },
     "auto_insert_twirl": {
@@ -91,7 +91,7 @@
     },
     "change_angle_to": {
         "ko": " -> 바꿀 각도: ",
-        "en": " -> Change Angle to: ",
+        "en": " -> Change To: ",
         "zh": ""
     },
     "execute": {
@@ -105,8 +105,8 @@
         "zh": ""
     },
     "legacy_pause_desc": {
-        "ko": "버튼 기능\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다.\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다.",
-        "en": "Buttons\n  - ↑ (+1): Increases the pause duration on the U-Turn tile.\n  - ↓ (-1): Decreases the pause duration on the U-Turn tile. (Use this if you mistake)",
+        "ko": "버튼 기능\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다.\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)",
+        "en": "Buttons\n  - ↑ (+1): Increases the pause duration on the U-Turn tile.\n  - ↓ (-1): Decreases the pause duration on the U-Turn tile. (Use to revert mistakes)",
         "zh": ""
     },
     "not_in_editor": {
