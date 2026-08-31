@@ -2,7 +2,7 @@ using UnityModManagerNet;
 
 namespace QuickChart {
     public class Settings : UnityModManager.ModSettings {
-        public bool IsKorean = true;
+        public string Language = "ko";
         
         public bool AutoInsertPositionTrack = true;
             public float PositionTrackUnit = 1f;

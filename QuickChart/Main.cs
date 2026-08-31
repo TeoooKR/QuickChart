@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using ADOFAI;
 using ADOFAI.Editor;
 using ADOFAI.Editor.Actions;
 using HarmonyLib;
+using Newtonsoft.Json;
 using UnityModManagerNet;
 using UnityEngine;
 
@@ -21,7 +23,8 @@ namespace QuickChart {
         static float _repeatTimer;
         static int _lastBpmDirection;
         
-        private static bool _isKorean = true;
+        private static string _language = "ko";
+        private static Dictionary<string, Dictionary<string, string>> _translations;
         private static string _legacyPauseResultStr = "";
         private static string _changeAngleResultStr = "";
 
@@ -56,8 +59,9 @@ namespace QuickChart {
         public static void Setup(UnityModManager.ModEntry modEntry) {
             Logger = modEntry.Logger;
             _settings = UnityModManager.ModSettings.Load<Settings>(modEntry);
+            LoadTranslations(modEntry.Path);
 
-            _isKorean = _settings.IsKorean;
+            _language = _settings.Language;
 
             _autoInsertPositionTrack = _settings.AutoInsertPositionTrack;
                 _positionTrackUnit = _settings.PositionTrackUnit;
@@ -97,8 +101,28 @@ namespace QuickChart {
             return true;
         }
 
-        private static string GetTranslation(string kr, string en) {
-            return _isKorean ? kr : en;
+        private static void LoadTranslations(string modPath) {
+            try {
+                string path = Path.Combine(modPath, "translations.json");
+                if (File.Exists(path)) {
+                    string json = File.ReadAllText(path);
+                    _translations = JsonConvert.DeserializeObject<Dictionary<string, Dictionary<string, string>>>(json);
+                }
+            } catch (Exception e) {
+                Logger.Log($"Failed to load translations: {e.Message}");
+            }
+            if (_translations == null)
+                _translations = new Dictionary<string, Dictionary<string, string>>();
+        }
+
+        private static string T(string key) {
+            if (_translations.TryGetValue(key, out var entry)) {
+                if (entry.TryGetValue(_language, out string val) && !string.IsNullOrEmpty(val))
+                    return val;
+                if (entry.TryGetValue("en", out string enVal) && !string.IsNullOrEmpty(enVal))
+                    return enVal;
+            }
+            return key;
         }
         
         private static void OnGUI(UnityModManager.ModEntry modEntry) {
@@ -106,22 +130,25 @@ namespace QuickChart {
             GUILayout.BeginHorizontal();
             GUILayout.Label("Language / 언어 설정:", GUILayout.ExpandWidth(false));
             GUILayout.Space(10f);
-            int langIdx = _isKorean ? 0 : 1;
-            int nextLangIdx = GUILayout.Toolbar(langIdx, new[] { "한국어", "English" }, GUILayout.Width(200f));
+            string[] langNames = { "한국어", "English", "中文" };
+            string[] langCodes = { "ko", "en", "zh" };
+            int langIdx = Array.IndexOf(langCodes, _language);
+            if (langIdx < 0) langIdx = 1;
+            int nextLangIdx = GUILayout.Toolbar(langIdx, langNames, GUILayout.Width(300f));
             if (langIdx != nextLangIdx) {
-                _isKorean = (nextLangIdx == 0);
-                _settings.IsKorean = _isKorean;
+                _language = langCodes[nextLangIdx];
+                _settings.Language = _language;
             }
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             
             bool prevAutoPos = _autoInsertPositionTrack;
-            _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, GetTranslation("일시정지 설치 시 길 위치 자동 설치", "Auto-insert Position Track on Pause"));
+            _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, T("auto_insert_position"));
             if (prevAutoPos != _autoInsertPositionTrack) _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
                     GUI.enabled = _autoInsertPositionTrack; 
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
-                    GUILayout.Label(GetTranslation("길 위치 이동 단위", "Position Track unit"));
+                    GUILayout.Label(T("position_track_unit"));
                     string unitInput = GUILayout.TextField(_positionTrackUnitStr, GUILayout.Width(45));
                     if (unitInput != _positionTrackUnitStr) {
                         _positionTrackUnitStr = unitInput;
@@ -136,12 +163,12 @@ namespace QuickChart {
                     
                     
             bool prevAutoMove = _autoInsertMoveTrack;
-            _autoInsertMoveTrack = GUILayout.Toggle(_autoInsertMoveTrack, GetTranslation("일시정지 설치 시 길 이동 자동 설치", "Auto-insert Move Track on Pause"));
+            _autoInsertMoveTrack = GUILayout.Toggle(_autoInsertMoveTrack, T("auto_insert_move"));
             if (prevAutoMove != _autoInsertMoveTrack) _settings.AutoInsertMoveTrack = _autoInsertMoveTrack;
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     GUI.enabled = _autoInsertMoveTrack;
-                    GUILayout.Label(GetTranslation("가감속", "Easing"));
+                    GUILayout.Label(T("easing"));
                     GUILayout.EndHorizontal();
                             GUILayout.BeginHorizontal();
                             GUILayout.Space(32);
@@ -152,7 +179,7 @@ namespace QuickChart {
                             GUI.enabled = _autoInsertMoveTrack && !isLinear;
                             string[] currentModes = isFlash ? _easingModesFlash : _easingModes;
                             if (_easeModeIdx >= currentModes.Length) _easeModeIdx = currentModes.Length - 1;
-                            GUILayout.Label(GetTranslation("종류", "Mode"));
+                            GUILayout.Label(T("mode"));
                             int nextModeIdx = GUILayout.Toolbar(_easeModeIdx, currentModes);
                             if (nextModeIdx != _easeModeIdx) {
                                 _easeModeIdx = nextModeIdx;
@@ -161,7 +188,7 @@ namespace QuickChart {
                             GUI.enabled = _autoInsertMoveTrack;
                             
                             GUILayout.Space(15);
-                            GUILayout.Label(GetTranslation("함수", "Function"));
+                            GUILayout.Label(T("function"));
                             int nextFuncIdx = GUILayout.SelectionGrid(_easeFuncIdx, _easingFunctions, 4);
                             if (nextFuncIdx != _easeFuncIdx) {
                                 _easeFuncIdx = nextFuncIdx;
@@ -173,19 +200,19 @@ namespace QuickChart {
                             GUI.enabled = true;
                             
             bool prevSwap = _swapShortcuts;
-            _swapShortcuts = GUILayout.Toggle(_swapShortcuts, GetTranslation("Ctrl, Alt 단축키 반전", "Swap Ctrl and Alt"));
+            _swapShortcuts = GUILayout.Toggle(_swapShortcuts, T("swap_shortcuts"));
             if (prevSwap != _swapShortcuts) _settings.SwapShortcuts = _swapShortcuts;   
             GUILayout.Space(4);
                             
             bool prevSpeed = _speedShortcutEnabled;
             string speedShortcutStr = _swapShortcuts ? "(Ctrl+↑/↓, Ctrl+Shift+↑/↓)" : "(Alt+↑/↓, Alt+Shift+↑/↓)";
-            _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, GetTranslation("속도 설정 단축키 활성화 ", "Enable Set Speed Shortcut ") + speedShortcutStr);
+            _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, T("enable_speed_shortcut") + speedShortcutStr);
             if (prevSpeed != _speedShortcutEnabled) _settings.SpeedShortcutEnabled = _speedShortcutEnabled;
                     GUI.enabled = _speedShortcutEnabled; 
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     string bpmShortcutStr = _swapShortcuts ? "Ctrl+Shift+↑/↓ " : "Alt+Shift+↑/↓ ";
-                    GUILayout.Label(bpmShortcutStr + GetTranslation("BPM 변화량", "BPM Change Amount"));
+                    GUILayout.Label(bpmShortcutStr + T("bpm_change_amount"));
                     string input = GUILayout.TextField(_bpmDeltaStr, GUILayout.Width(32));
                     if (input != _bpmDeltaStr) {
                         _bpmDeltaStr = input;
@@ -202,30 +229,30 @@ namespace QuickChart {
                     
             bool prevPause = _pauseShortcutEnabled;
             string pauseShortcutStr = _swapShortcuts ? "(Alt+↑/↓)" : "(Ctrl+↑/↓)";
-            _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, GetTranslation("비트 일시정지 단축키 활성화", "Enable Pause Shortcut") + pauseShortcutStr);
+            _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, T("enable_pause_shortcut") + pauseShortcutStr);
             if (prevPause != _pauseShortcutEnabled) _settings.PauseShortcutEnabled = _pauseShortcutEnabled;
                     GUI.enabled = _pauseShortcutEnabled;
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     bool prevAdjust = _adjustPositionTrackWithPause;
-                    _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, GetTranslation("비트 수에 따라 길 위치 배수 적용", "Scale Position offset with Pause duration"));
+                    _adjustPositionTrackWithPause = GUILayout.Toggle(_adjustPositionTrackWithPause, T("scale_position_with_pause"));
                     if (prevAdjust != _adjustPositionTrackWithPause) _settings.AdjustPositionWithPause = _adjustPositionTrackWithPause;
                     GUILayout.EndHorizontal();
                     
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     bool prevAutoTick = _autoSetCountdownTicks;
-                    _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, GetTranslation("카운트다운 틱 자동 설정", "Auto-set Countdown Ticks"));
+                    _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, T("auto_set_countdown_ticks"));
                     if (prevAutoTick != _autoSetCountdownTicks) _settings.AutoSetCountdownTicks = _autoSetCountdownTicks;
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
                     
             bool prevAllowBackward = _allowBackwardPaste;
-            _allowBackwardPaste = GUILayout.Toggle(_allowBackwardPaste, GetTranslation("역방향 타일 붙여넣기 허용", "Allow Paste Backward Tiles"));
+            _allowBackwardPaste = GUILayout.Toggle(_allowBackwardPaste, T("allow_backward_paste"));
             if (prevAllowBackward != _allowBackwardPaste) _settings.AllowBackwardPaste = _allowBackwardPaste;
     
             bool prevDisableMovePage = _disableMovePageShortcuts;
-            _disableMovePageShortcuts = GUILayout.Toggle(_disableMovePageShortcuts, GetTranslation("대괄호([, ]) 페이지 이동 단축키 비활성화", "Disable Move Page Shortcuts ([, ])"));
+            _disableMovePageShortcuts = GUILayout.Toggle(_disableMovePageShortcuts, T("disable_move_page_shortcuts"));
             if (prevDisableMovePage != _disableMovePageShortcuts) {
                 _settings.DisableMovePageShortcuts = _disableMovePageShortcuts;
 
@@ -236,19 +263,19 @@ namespace QuickChart {
             }
             
             bool prevAutoInsertTwirl = _autoInsertTwirl;
-            _autoInsertTwirl = GUILayout.Toggle(_autoInsertTwirl, GetTranslation("타일 180° 초과 시 소용돌이 자동 설치 (내각 고정)", "Auto-insert Twirl when tile angle > 180° (Always interior angle)"));
+            _autoInsertTwirl = GUILayout.Toggle(_autoInsertTwirl, T("auto_insert_twirl"));
             if (prevAutoInsertTwirl != _autoInsertTwirl) _settings.AutoInsertTwirl = _autoInsertTwirl;
             
             GUILayout.Space(8);
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(16);
-            GUILayout.Label(GetTranslation("<b>각도 바꾸기</b>", "<b>Change Angle</b>"));
+            GUILayout.Label(T("change_angle_title"));
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
-                    GUILayout.Label(GetTranslation("적용할 타일 범위 (선택 시 자동 입력): ", "Tile Range (auto filled on selection): "));
+                    GUILayout.Label(T("tile_range"));
                     _settings.ChangeAngleStartTile = GUILayout.TextField(_settings.ChangeAngleStartTile, GUILayout.Width(40));
                     GUILayout.Label(" ~ ");
                     _settings.ChangeAngleEndTile = GUILayout.TextField(_settings.ChangeAngleEndTile, GUILayout.Width(40));
@@ -257,9 +284,9 @@ namespace QuickChart {
                     
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
-                    GUILayout.Label(GetTranslation("찾을 각도: ", "Find Angle: "));
+                    GUILayout.Label(T("find_angle"));
                     _settings.ChangeAngleFind = GUILayout.TextField(_settings.ChangeAngleFind, GUILayout.Width(40));
-                    GUILayout.Label(GetTranslation(" -> 바꿀 각도: ", " -> Change Angle to: "));
+                    GUILayout.Label(T("change_angle_to"));
                     _settings.ChangeAngleReplace = GUILayout.TextField(_settings.ChangeAngleReplace, GUILayout.Width(40));
                     GUILayout.FlexibleSpace();
                     GUILayout.EndHorizontal();
@@ -267,7 +294,7 @@ namespace QuickChart {
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     GUI.enabled = ADOBase.isEditingLevel;
-                    if (GUILayout.Button(GetTranslation("실행", "Execute"), GUILayout.Width(100))) {
+                    if (GUILayout.Button(T("execute"), GUILayout.Width(100))) {
                         ExecuteAngleChange();
                     }
                     if (!string.IsNullOrEmpty(_changeAngleResultStr)) {
@@ -282,26 +309,18 @@ namespace QuickChart {
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(16);
-            GUILayout.Label(GetTranslation("<b>레거시 일시정지 최신화</b>", "<b>Convert Legacy Pause</b>"));
+            GUILayout.Label(T("convert_legacy_pause_title"));
             GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     GUILayout.Label("<color=#888888><size=12>" +
-                                    GetTranslation(
-                                        "버튼 기능" +
-                                        "\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다." +
-                                        "\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)" +
-                                        "\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다."
-                                        ,
-                                        "Buttons" +
-                                        "\n  - ↑ (+1): Increases the pause duration on the U-Turn tile." +
-                                        "\n  - ↓ (-1): Decreases the pause duration on the U-Turn tile. (Use this if you mistake)" +
-                                        "</size></color>"));
+                                    T("legacy_pause_desc") +
+                                    "</size></color>");
                     GUILayout.EndHorizontal();
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     if (!ADOBase.isEditingLevel) {
-                        GUILayout.Label(GetTranslation("현재 레벨 에디터에 있지 않습니다.", "Not currently in the level editor."));
+                        GUILayout.Label(T("not_in_editor"));
                     } else {
                         
                         GUILayout.BeginHorizontal();
@@ -669,9 +688,9 @@ namespace QuickChart {
             }
             
             if (changedTiles.Count > 0) {
-                _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation($"{changedTiles.Count}개 변경!", $"{changedTiles.Count} tiles changed!") + $"({string.Join(", ", changedTiles)})</color>";
+                _legacyPauseResultStr = "<color=#88ff88>" + string.Format(T("tiles_changed"), changedTiles.Count) + $"({string.Join(", ", changedTiles)})</color>";
             } else {
-                _legacyPauseResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
+                _legacyPauseResultStr = "<color=#88ff88>" + string.Format(T("tiles_changed"), 0) + "</color>";
             }
         }
 
@@ -695,7 +714,7 @@ namespace QuickChart {
             if (!double.TryParse(_settings.ChangeAngleReplace, out double replaceAngle)) return;
             
             if (Mathf.Approximately((float)findAngle, (float)replaceAngle)) {
-                _changeAngleResultStr = "<color=#ffff88>" + GetTranslation("찾을 각도와 바꿀 각도가 같습니다.", "Find and replace angles are the same.") + "</color>";
+                _changeAngleResultStr = "<color=#ffff88>" + T("angles_same_error") + "</color>";
                 return;
             }
 
@@ -741,9 +760,9 @@ namespace QuickChart {
                 if (allChangedTiles.Count > 0) {
                     var sortedTiles = new List<int>(allChangedTiles);
                     sortedTiles.Sort();
-                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation($"{allChangedTiles.Count}개 변경!", $"{allChangedTiles.Count} tiles changed!") + $" ({string.Join(", ", sortedTiles)})</color>";
+                    _changeAngleResultStr = "<color=#88ff88>" + string.Format(T("tiles_changed"), allChangedTiles.Count) + $" ({string.Join(", ", sortedTiles)})</color>";
                 } else {
-                    _changeAngleResultStr = "<color=#88ff88>" + GetTranslation("0개 변경!", "0 tiles changed!") + "</color>";
+                    _changeAngleResultStr = "<color=#88ff88>" + string.Format(T("tiles_changed"), 0) + "</color>";
                 }
             }
         }

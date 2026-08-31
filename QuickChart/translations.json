@@ -1,0 +1,127 @@
+{
+    "auto_insert_position": {
+        "ko": "일시정지 설치 시 길 위치 자동 설치",
+        "en": "Auto-insert Position Track on Pause",
+        "zh": ""
+    },
+    "position_track_unit": {
+        "ko": "길 위치 이동 단위",
+        "en": "Position Track unit",
+        "zh": ""
+    },
+    "auto_insert_move": {
+        "ko": "일시정지 설치 시 길 이동 자동 설치",
+        "en": "Auto-insert Move Track on Pause",
+        "zh": ""
+    },
+    "easing": {
+        "ko": "가감속",
+        "en": "Easing",
+        "zh": ""
+    },
+    "mode": {
+        "ko": "종류",
+        "en": "Mode",
+        "zh": ""
+    },
+    "function": {
+        "ko": "함수",
+        "en": "Function",
+        "zh": ""
+    },
+    "swap_shortcuts": {
+        "ko": "Ctrl, Alt 단축키 반전",
+        "en": "Swap Ctrl and Alt",
+        "zh": ""
+    },
+    "enable_speed_shortcut": {
+        "ko": "속도 설정 단축키 활성화 ",
+        "en": "Enable Set Speed Shortcut ",
+        "zh": ""
+    },
+    "bpm_change_amount": {
+        "ko": "BPM 변화량",
+        "en": "BPM Change Amount",
+        "zh": ""
+    },
+    "enable_pause_shortcut": {
+        "ko": "비트 일시정지 단축키 활성화",
+        "en": "Enable Pause Shortcut",
+        "zh": ""
+    },
+    "scale_position_with_pause": {
+        "ko": "비트 수에 따라 길 위치 배수 적용",
+        "en": "Scale Position offset with Pause duration",
+        "zh": ""
+    },
+    "auto_set_countdown_ticks": {
+        "ko": "카운트다운 틱 자동 설정",
+        "en": "Auto-set Countdown Ticks",
+        "zh": ""
+    },
+    "allow_backward_paste": {
+        "ko": "역방향 타일 붙여넣기 허용",
+        "en": "Allow Paste Backward Tiles",
+        "zh": ""
+    },
+    "disable_move_page_shortcuts": {
+        "ko": "대괄호([, ]) 페이지 이동 단축키 비활성화",
+        "en": "Disable Move Page Shortcuts ([, ])",
+        "zh": ""
+    },
+    "auto_insert_twirl": {
+        "ko": "타일 180° 초과 시 소용돌이 자동 설치 (내각 고정)",
+        "en": "Auto-insert Twirl when tile angle > 180° (Always interior angle)",
+        "zh": ""
+    },
+    "change_angle_title": {
+        "ko": "<b>각도 바꾸기</b>",
+        "en": "<b>Change Angle</b>",
+        "zh": ""
+    },
+    "tile_range": {
+        "ko": "적용할 타일 범위 (선택 시 자동 입력): ",
+        "en": "Tile Range (auto filled on selection): ",
+        "zh": ""
+    },
+    "find_angle": {
+        "ko": "찾을 각도: ",
+        "en": "Find Angle: ",
+        "zh": ""
+    },
+    "change_angle_to": {
+        "ko": " -> 바꿀 각도: ",
+        "en": " -> Change Angle to: ",
+        "zh": ""
+    },
+    "execute": {
+        "ko": "실행",
+        "en": "Execute",
+        "zh": ""
+    },
+    "convert_legacy_pause_title": {
+        "ko": "<b>레거시 일시정지 최신화</b>",
+        "en": "<b>Convert Legacy Pause</b>",
+        "zh": ""
+    },
+    "legacy_pause_desc": {
+        "ko": "버튼 기능\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다.\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)\n  - 화살표 버튼을 클릭하여 값을 수정하면 legacyPause 옵션은 자동으로 꺼집니다.",
+        "en": "Buttons\n  - ↑ (+1): Increases the pause duration on the U-Turn tile.\n  - ↓ (-1): Decreases the pause duration on the U-Turn tile. (Use this if you mistake)",
+        "zh": ""
+    },
+    "not_in_editor": {
+        "ko": "현재 레벨 에디터에 있지 않습니다.",
+        "en": "Not currently in the level editor.",
+        "zh": ""
+    },
+    "tiles_changed": {
+        "ko": "{0}개 변경!",
+        "en": "{0} tiles changed!",
+        "zh": ""
+    },
+    "angles_same_error": {
+        "ko": "찾을 각도와 바꿀 각도가 같습니다.",
+        "en": "Find and replace angles are the same.",
+        "zh": ""
+    }
+}
