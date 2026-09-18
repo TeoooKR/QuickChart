@@ -51,6 +51,7 @@ namespace QuickChart {
         private static bool _pauseShortcutEnabled = true;
             private static bool _adjustPositionTrackWithPause = true;
             private static bool _autoSetCountdownTicks = true;
+            private static bool _insertColorTrack = false;
             
         public static bool _allowBackwardPaste = true;
         public static bool _disableMovePageShortcuts = true;
@@ -80,6 +81,7 @@ namespace QuickChart {
             _pauseShortcutEnabled = _settings.PauseShortcutEnabled;
                 _adjustPositionTrackWithPause = _settings.AdjustPositionWithPause;
                 _autoSetCountdownTicks = _settings.AutoSetCountdownTicks;
+                _insertColorTrack = _settings.InsertColorTrack;
 
             _allowBackwardPaste = _settings.AllowBackwardPaste;
             _disableMovePageShortcuts = _settings.DisableMovePageShortcuts;
@@ -244,6 +246,13 @@ namespace QuickChart {
                     bool prevAutoTick = _autoSetCountdownTicks;
                     _autoSetCountdownTicks = GUILayout.Toggle(_autoSetCountdownTicks, T("auto_set_countdown_ticks"));
                     if (prevAutoTick != _autoSetCountdownTicks) _settings.AutoSetCountdownTicks = _autoSetCountdownTicks;
+                    GUILayout.EndHorizontal();
+                    
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    bool prevAutoColor = _insertColorTrack;
+                    _insertColorTrack = GUILayout.Toggle(_insertColorTrack, T("auto_insert_color_track"));
+                    if (prevAutoColor != _insertColorTrack) _settings.InsertColorTrack = _insertColorTrack;
                     GUILayout.EndHorizontal();
                     GUI.enabled = true;
                     
@@ -411,16 +420,50 @@ namespace QuickChart {
             }
         }
         
-        public static bool UpdateCountdownTicks(LevelEvent pauseEvent, int floorID) {
-            if (!_autoSetCountdownTicks || pauseEvent == null) return false;
+        public static bool OnPauseDurationChanged(LevelEvent pauseEvent, int floorID) {
+            if (pauseEvent == null) return false;
+            if (!_autoSetCountdownTicks && !_insertColorTrack) return false;
 
             var data = pauseEvent.GetData();
             float duration = Convert.ToSingle(data["duration"]);
             double tileBeats = GetFloorRelativeAngle(floorID) / 180;
             double totalBeats = tileBeats + duration;
 
-            data["countdownTicks"] = totalBeats >= 4 ? 4 : 0;
+            if (_autoSetCountdownTicks) {
+                data["countdownTicks"] = totalBeats >= 4 ? 4 : 0;
+            }
+
+            if (_insertColorTrack) {
+                UpdateColorTrack(floorID, totalBeats >= 4);
+            }
+
             return true;
+        }
+
+        private static void UpdateColorTrack(int floorID, bool shouldBeGems) {
+            var editor = ADOBase.editor;
+            var colorTrackEvents = editor.GetFloorEvents(floorID, LevelEventType.ColorTrack);
+
+            if (shouldBeGems) {
+                if (colorTrackEvents.Count > 0) {
+                    var ctData = colorTrackEvents[0].GetData();
+                    ctData["trackStyle"] = Enum.Parse(colorTrackEvents[0].info.propertiesInfo["trackStyle"].enumType, "Gems");
+                    ctData["justThisTile"] = true;
+                } else {
+                    AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.ColorTrack });
+                    var lastEvent = editor.events[editor.events.Count - 1];
+                    var ctData = lastEvent.GetData();
+                    ctData["trackStyle"] = Enum.Parse(lastEvent.info.propertiesInfo["trackStyle"].enumType, "Gems");
+                    ctData["justThisTile"] = true;
+                }
+            } else {
+                if (colorTrackEvents.Count > 0) {
+                    var ctData = colorTrackEvents[0].GetData();
+                    if (ctData["trackStyle"].ToString() == "Gems") {
+                        editor.RemoveEvents(new List<LevelEvent> { colorTrackEvents[0] });
+                    }
+                }
+            }
         }
         
         private static void HandlePause(scnEditor editor, int delta) {
@@ -481,7 +524,7 @@ namespace QuickChart {
                         }
                     }
 
-                    if (id < editor.floors.Count - 1) UpdateCountdownTicks(selectedEvent, id);
+                    if (id < editor.floors.Count - 1) OnPauseDurationChanged(selectedEvent, id);
                     editor.levelEventsPanel.ShowPanel(LevelEventType.Pause);
                 }
 

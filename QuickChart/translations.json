@@ -59,6 +59,11 @@
         "en": "Auto-set Countdown Ticks",
         "zh": "自动调整暂停节拍中的计数滴答次数"
     },
+    "auto_insert_color_track": {
+        "ko": "4박자 이상 시 트랙 스타일 보석 적용",
+        "en": "Apply Gems Track style on 4+ beats",
+        "zh": ""
+    },
     "allow_backward_paste": {
         "ko": "역방향 타일 붙여넣기 허용",
         "en": "Allow Paste Backward Tiles",

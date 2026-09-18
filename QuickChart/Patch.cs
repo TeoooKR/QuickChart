@@ -65,7 +65,7 @@ namespace QuickChart {
                 var shiftedPT = editor.GetFloorEvents(floorID + 2, LevelEventType.PositionTrack);
 
                 if (pauseEventsOnCurrent.Count > 0) {
-                    changed |= Main.UpdateCountdownTicks(pauseEventsOnCurrent[0], floorID);
+                    changed |= Main.OnPauseDurationChanged(pauseEventsOnCurrent[0], floorID);
                     
                     if (shiftedPT.Count > 0) {
                         editor.RemoveEvent(shiftedPT[0]);

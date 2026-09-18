@@ -19,6 +19,7 @@ namespace QuickChart {
         public bool PauseShortcutEnabled = true;
             public bool AdjustPositionWithPause = false;
             public bool AutoSetCountdownTicks = true;
+            public bool InsertColorTrack = false;
 
         public bool AllowBackwardPaste = true;
         public bool DisableMovePageShortcuts = false;
