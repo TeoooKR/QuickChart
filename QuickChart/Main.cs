@@ -800,17 +800,26 @@ namespace QuickChart {
 
             if (string.IsNullOrEmpty(_settings.ChangeAngleStartTile) || !int.TryParse(_settings.ChangeAngleStartTile, out int startTile)) 
                 startTile = 1;
+            if (startTile < 1) startTile = 1;
 
             if (string.IsNullOrEmpty(_settings.ChangeAngleEndTile) || !int.TryParse(_settings.ChangeAngleEndTile, out int endTile)) 
                 endTile = maxTileIndex - 1;
+            if (endTile < 1) endTile = 1;
 
             startTile = Mathf.Clamp(startTile, 1, maxTileIndex - 1);
             endTile = Mathf.Clamp(endTile, 1, maxTileIndex - 1);
             
-            if (endTile < startTile) return;
+            if (startTile > endTile) {
+                int temp = startTile;
+                startTile = endTile;
+                endTile = temp;
+            }
 
             if (!double.TryParse(_settings.ChangeAngleFind, out double findAngle)) return;
+            if (findAngle <= 0 || findAngle > 360) return;
+
             if (!double.TryParse(_settings.ChangeAngleReplace, out double replaceAngle)) return;
+            if (replaceAngle <= 0 || replaceAngle > 360) return;
             
             if (Mathf.Approximately((float)findAngle, (float)replaceAngle)) {
                 _changeAngleResultStr = "<color=#ffff88>" + T("angles_same_error") + "</color>";
@@ -1036,18 +1045,24 @@ namespace QuickChart {
 
             if (string.IsNullOrEmpty(_settings.ChangeAngleStartTile) || !int.TryParse(_settings.ChangeAngleStartTile, out int startTile)) 
                 startTile = 1;
+            if (startTile < 1) startTile = 1;
 
             if (string.IsNullOrEmpty(_settings.ChangeAngleEndTile) || !int.TryParse(_settings.ChangeAngleEndTile, out int endTile)) 
                 endTile = maxTileIndex - 1;
+            if (endTile < 1) endTile = 1;
 
             startTile = Mathf.Clamp(startTile, 1, maxTileIndex - 1);
             endTile = Mathf.Clamp(endTile, 1, maxTileIndex - 1);
             
-            if (endTile < startTile) return;
+            if (startTile > endTile) {
+                int temp = startTile;
+                startTile = endTile;
+                endTile = temp;
+            }
 
             if (!int.TryParse(_settings.PseudoMidspinCount, out int count) || count < 2) return;
             if (!int.TryParse(_settings.PseudoMidspinStep, out int step) || step < 1) return;
-            if (!float.TryParse(_settings.PseudoMidspinOffset, out float offset)) return;
+            if (!float.TryParse(_settings.PseudoMidspinOffset, out float offset) || offset <= 0 || offset > 360) return;
 
             using (new SaveStateScope(editor)) {
                 int changedTiles = 0;

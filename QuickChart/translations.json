@@ -60,7 +60,7 @@
         "zh": "自动调整暂停节拍中的计数滴答次数"
     },
     "auto_insert_color_track": {
-        "ko": "4박자 이상 시 트랙 스타일 보석 적용",
+        "ko": "4박자 이상 시 길 스타일 보석 적용",
         "en": "Apply Gems Track style on 4+ beats",
         "zh": ""
     },
@@ -114,7 +114,7 @@
         "en": "<b>[ Tile Transformation ]</b>"
     },
     "maintain_timing_desc": {
-        "ko": "바꾼 각도 다음 타일에 소용돌이가 있을 때, 다음 타일에 변속 보정을 넣어 타이밍이 유지되도록 합니다.\n스윙 기반 30도 동타 채보를 낮은 각도로 변환할 때 유용합니다.\n끄는 것이 일반적입니다.",
+        "ko": "바꾼 각도 다음 타일에 소용돌이가 있을 때, 다음 타일에 변속 보정을 넣어 타이밍이 유지되도록 합니다.\n스윙 기반 30도 동타 채보를 낮은 각도로 변환할 때 유용합니다. 끄는 것이 일반적입니다.",
         "en": "Automatically inserts speed changes to maintain the original timing when a twirl is on the next tile after a changed angle.\nUseful when converting 30-degree swing charts to lower angles. It's common to turn it off."
     },
     "pseudo_midspin_subtitle": {
