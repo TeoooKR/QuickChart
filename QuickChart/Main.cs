@@ -27,8 +27,10 @@ namespace QuickChart {
         private static Dictionary<string, Dictionary<string, string>> _translations;
         private static string _legacyPauseResultStr = "";
         private static string _changeAngleResultStr = "";
-
-        readonly private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
+        private static string _pseudoMidspinResultStr = "";
+        private static MethodInfo AddEventMethod = typeof(scnEditor).GetMethod("AddEvent",
+            BindingFlags.NonPublic | BindingFlags.Instance);
+        private static MethodInfo OffsetFloorIDsInEventsMethod = typeof(scnEditor).GetMethod("OffsetFloorIDsInEvents",
             BindingFlags.NonPublic | BindingFlags.Instance);
         
         public static bool _autoInsertPositionTrack = true;
@@ -281,9 +283,10 @@ namespace QuickChart {
 
             GUILayout.BeginHorizontal();
             GUILayout.Space(16);
-            GUILayout.Label(T("change_angle_title"));
+            GUILayout.Label(T("tile_transform_title"));
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
+
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     GUILayout.Label(T("tile_range"));
@@ -293,40 +296,79 @@ namespace QuickChart {
                     GUILayout.FlexibleSpace();
                     GUILayout.EndHorizontal();
                     
+                    GUILayout.Space(8);
+
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
-                    GUILayout.Label(T("find_angle"));
-                    _settings.ChangeAngleFind = GUILayout.TextField(_settings.ChangeAngleFind, GUILayout.Width(40));
-                    GUILayout.Label(T("change_angle_to"));
-                    _settings.ChangeAngleReplace = GUILayout.TextField(_settings.ChangeAngleReplace, GUILayout.Width(40));
+                    GUILayout.Label(T("change_angle_title"));
                     GUILayout.FlexibleSpace();
                     GUILayout.EndHorizontal();
+                    
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(48);
+                            GUILayout.Label(T("find_angle"));
+                            _settings.ChangeAngleFind = GUILayout.TextField(_settings.ChangeAngleFind, GUILayout.Width(40));
+                            GUILayout.Label(T("change_angle_to"));
+                            _settings.ChangeAngleReplace = GUILayout.TextField(_settings.ChangeAngleReplace, GUILayout.Width(40));
+                            GUILayout.FlexibleSpace();
+                            GUILayout.EndHorizontal();
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Space(32);
-                    bool prevMaintainTiming = _maintainTimingWithSpeed;
-                    _maintainTimingWithSpeed = GUILayout.Toggle(_maintainTimingWithSpeed, T("maintain_timing_with_speed"));
-                    if (prevMaintainTiming != _maintainTimingWithSpeed) _settings.MaintainTimingWithSpeed = _maintainTimingWithSpeed;
-                    GUILayout.EndHorizontal();
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(48);
+                            bool prevMaintainTiming = _maintainTimingWithSpeed;
+                            _maintainTimingWithSpeed = GUILayout.Toggle(_maintainTimingWithSpeed, T("maintain_timing_with_speed"));
+                            if (prevMaintainTiming != _maintainTimingWithSpeed) _settings.MaintainTimingWithSpeed = _maintainTimingWithSpeed;
+                            GUILayout.EndHorizontal();
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Space(64);
-                    GUILayout.Label("<color=#888888><size=12>" + T("maintain_timing_desc") + "</size></color>");
-                    GUILayout.EndHorizontal();
+                                    GUILayout.BeginHorizontal();
+                                    GUILayout.Space(64);
+                                    GUILayout.Label("<color=#888888><size=12>" + T("maintain_timing_desc") + "</size></color>");
+                                    GUILayout.EndHorizontal();
 
-                    GUILayout.BeginHorizontal();
-                    GUILayout.Space(32);
-                    GUI.enabled = ADOBase.isEditingLevel;
-                    if (GUILayout.Button(T("execute"), GUILayout.Width(100))) {
-                        ExecuteAngleChange();
-                    }
-                    if (!string.IsNullOrEmpty(_changeAngleResultStr)) {
-                        GUILayout.Label(_changeAngleResultStr);
-                    }
-                    GUI.enabled = true;
-                    GUILayout.FlexibleSpace();
-                    GUILayout.EndHorizontal();
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(48);
+                            GUI.enabled = ADOBase.isEditingLevel;
+                            if (GUILayout.Button(T("execute"), GUILayout.Width(100))) {
+                                ExecuteAngleChange();
+                            }
+                            if (!string.IsNullOrEmpty(_changeAngleResultStr)) {
+                                GUILayout.Label(_changeAngleResultStr);
+                            }
+                            GUI.enabled = true;
+                            GUILayout.FlexibleSpace();
+                            GUILayout.EndHorizontal();
             
+                    GUILayout.Space(8);
+                    
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
+                    GUILayout.Label(T("pseudo_midspin_subtitle"));
+                    GUILayout.EndHorizontal();
+
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(48);
+                            GUILayout.Label(T("pseudo_midspin_count"));
+                            _settings.PseudoMidspinCount = GUILayout.TextField(_settings.PseudoMidspinCount, GUILayout.Width(40));
+                            GUILayout.Label(T("pseudo_midspin_step"));
+                            _settings.PseudoMidspinStep = GUILayout.TextField(_settings.PseudoMidspinStep, GUILayout.Width(40));
+                            GUILayout.Label(T("pseudo_midspin_offset"));
+                            _settings.PseudoMidspinOffset = GUILayout.TextField(_settings.PseudoMidspinOffset, GUILayout.Width(40));
+                            GUILayout.FlexibleSpace();
+                            GUILayout.EndHorizontal();
+
+                            GUILayout.BeginHorizontal();
+                            GUILayout.Space(48);
+                            GUI.enabled = ADOBase.isEditingLevel;
+                            if (GUILayout.Button(T("execute_pseudo_midspin"), GUILayout.Width(150))) {
+                                ExecutePseudoMidspin();
+                            }
+                            if (!string.IsNullOrEmpty(_pseudoMidspinResultStr)) {
+                                GUILayout.Label(_pseudoMidspinResultStr);
+                            }
+                            GUI.enabled = true;
+                            GUILayout.FlexibleSpace();
+                            GUILayout.EndHorizontal();
+                            
                     
             GUILayout.Space(8);
 
@@ -875,6 +917,67 @@ namespace QuickChart {
                     editor.ApplyEventsToFloors();
                 }
 
+                if (_maintainTimingWithSpeed && allChangedTiles.Count > 0) {
+                    float delta = replace - find;
+                    Dictionary<int, double> speedMultipliers = new Dictionary<int, double>();
+
+                    var sortedChanged = new List<int>(allChangedTiles);
+                    sortedChanged.Sort();
+
+                    foreach (int i in sortedChanged) {
+                        if (i + 1 >= editor.floors.Count) continue;
+                        if (editor.GetFloorEvents(i + 1, LevelEventType.Twirl).Count == 0) continue;
+
+                        double a2New = GetFloorRelativeAngle(i + 1);
+                        
+                        float s1 = editor.floors[i].speed;
+                        float s2 = editor.floors[i + 1].speed;
+
+                        double a2Target = a2New - delta * (1.0 + (double)s2 / s1);
+
+                        if (a2Target <= 0 || a2New <= 0) continue;
+
+                        double M = a2New / a2Target;
+
+                        if (!speedMultipliers.ContainsKey(i + 1)) speedMultipliers[i + 1] = 1.0;
+                        speedMultipliers[i + 1] *= M;
+
+                        if (i + 2 < editor.floors.Count) {
+                            var nextSpeedEvents = editor.GetFloorEvents(i + 2, LevelEventType.SetSpeed);
+                            bool hasAbsoluteBpm = false;
+                            if (nextSpeedEvents.Count > 0) {
+                                var currentType = nextSpeedEvents[0].GetData()["speedType"];
+                                if (currentType.ToString() == "Bpm" || currentType.ToString() == "0") {
+                                    hasAbsoluteBpm = true;
+                                }
+                            }
+                            
+                            if (!hasAbsoluteBpm) {
+                                if (!speedMultipliers.ContainsKey(i + 2)) speedMultipliers[i + 2] = 1.0;
+                                speedMultipliers[i + 2] *= (1.0 / M);
+                            }
+                        }
+                    }
+
+                    var sortedKeys = new List<int>(speedMultipliers.Keys);
+                    sortedKeys.Sort();
+
+                    foreach (int floorID in sortedKeys) {
+                        double multiplier = speedMultipliers[floorID];
+                        if (Math.Abs(multiplier - 1.0) < 0.0000001) continue;
+                        ApplySpeedMultiplier(editor, floorID, multiplier);
+
+                        if (editor.GetFloorEvents(floorID, LevelEventType.Twirl).Count == 0) {
+                            SetHideTileIcon(editor, floorID, true);
+                            if (floorID + 1 < editor.floors.Count) {
+                                SetHideTileIcon(editor, floorID + 1, false);
+                            }
+                        }
+                    }
+
+                    editor.ApplyEventsToFloors();
+                }
+
                 if (allChangedTiles.Count > 0) {
                     var sortedTiles = new List<int>(allChangedTiles);
                     sortedTiles.Sort();
@@ -923,6 +1026,70 @@ namespace QuickChart {
                 var data = lastEvent.GetData();
                 data["speedType"] = SpeedType.Multiplier;
                 data["bpmMultiplier"] = (float)multiplier;
+            }
+        }
+
+        private static void ExecutePseudoMidspin() {
+            scnEditor editor = ADOBase.editor;  
+            
+            int maxTileIndex = editor.floors.Count - 1;
+
+            if (string.IsNullOrEmpty(_settings.ChangeAngleStartTile) || !int.TryParse(_settings.ChangeAngleStartTile, out int startTile)) 
+                startTile = 1;
+
+            if (string.IsNullOrEmpty(_settings.ChangeAngleEndTile) || !int.TryParse(_settings.ChangeAngleEndTile, out int endTile)) 
+                endTile = maxTileIndex - 1;
+
+            startTile = Mathf.Clamp(startTile, 1, maxTileIndex - 1);
+            endTile = Mathf.Clamp(endTile, 1, maxTileIndex - 1);
+            
+            if (endTile < startTile) return;
+
+            if (!int.TryParse(_settings.PseudoMidspinCount, out int count) || count < 2) return;
+            if (!int.TryParse(_settings.PseudoMidspinStep, out int step) || step < 1) return;
+            if (!float.TryParse(_settings.PseudoMidspinOffset, out float offset)) return;
+
+            using (new SaveStateScope(editor)) {
+                int changedTiles = 0;
+                
+                for (int i = endTile; i >= startTile; i--) {
+                    if ((i - startTile) % step == 0) {
+                        int idx = i - 1;
+                        float originalAngle = editor.levelData.angleData[idx];
+                        bool isCCW = editor.floors[i].isCCW;
+                        
+                        List<float> newSequence = new List<float> { originalAngle };
+                        for (int k = 1; k < count; k++) {
+                            float newAngle = !isCCW 
+                                ? originalAngle + 180f - (offset * k)
+                                : originalAngle - 180f + (offset * k);
+                                
+                            newSequence.Add(newAngle);
+                            newSequence.Add(999f);
+                        }
+                        
+                        int addedCount = newSequence.Count - 1;
+                        if (addedCount > 0) {
+                            editor.levelData.angleData[idx] = newSequence[0];
+                            for (int k = 1; k < newSequence.Count; k++) {
+                                editor.levelData.angleData.Insert(idx + k, newSequence[k]);
+                            }
+                            
+                            OffsetFloorIDsInEventsMethod?.Invoke(editor, new object[] { i, addedCount });
+                        }
+
+                        
+                        changedTiles++;
+                    }
+                }
+
+                if (changedTiles > 0) {
+                    editor.RemakePath();
+                    editor.ApplyEventsToFloors();
+                    _pseudoMidspinResultStr = "<color=#88ff88>" + string.Format(T("tiles_changed"), changedTiles) + "</color>";
+                } else {
+                    _pseudoMidspinResultStr = "<color=#88ff88>" + string.Format(T("tiles_changed"), 0) + "</color>";
+                }
             }
         }
     }

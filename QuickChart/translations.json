@@ -85,8 +85,8 @@
         "zh": "<b>批量改角 (查找替换)</b>"
     },
     "tile_range": {
-        "ko": "적용할 타일 범위 (선택 시 자동 입력): ",
-        "en": "Tile Range (auto filled on selection): ",
+        "ko": "적용할 타일 범위 (타일 선택 시 자동 입력): ",
+        "en": "Tile Range (Auto-fills on tile select): ",
         "zh": "查找范围 (在编辑器内选中会自动填入)"
     },
     "find_angle": {
@@ -109,14 +109,38 @@
         "en": "Maintain timing with speed change",
         "zh": ""
     },
+    "tile_transform_title": {
+        "ko": "<b>[ 타일 변환 ]</b>",
+        "en": "<b>[ Tile Transformation ]</b>"
+    },
     "maintain_timing_desc": {
         "ko": "바꾼 각도 다음 타일에 소용돌이가 있을 때, 다음 타일에 변속 보정을 넣어 타이밍이 유지되도록 합니다.\n스윙 기반 30도 동타 채보를 낮은 각도로 변환할 때 유용합니다.\n끄는 것이 일반적입니다.",
         "en": "Automatically inserts speed changes to maintain the original timing when a twirl is on the next tile after a changed angle.\nUseful when converting 30-degree swing charts to lower angles. It's common to turn it off."
     },
+    "pseudo_midspin_subtitle": {
+        "ko": "<b>n도 동타 생성기</b>",
+        "en": "<b>Pseudo Midspin Generator</b>"
+    },
+    "pseudo_midspin_count": {
+        "ko": "동시치기 수:",
+        "en": "Pseudo Count:"
+    },
+    "pseudo_midspin_step": {
+        "ko": "간격:",
+        "en": "Step:"
+    },
+    "pseudo_midspin_offset": {
+        "ko": "각도:",
+        "en": "Angle:"
+    },
+    "execute_pseudo_midspin": {
+        "ko": "실행",
+        "en": "Execute"
+    },
     "convert_legacy_pause_title": {
-        "ko": "<b>레거시 일시정지 최신화</b>",
-        "en": "<b>Convert Legacy Pause</b>",
-        "zh": "<b>批量更改暂停节拍</b>"
+        "ko": "<b>[ 레거시 일시정지 최신화 ]</b>",
+        "en": "<b>[ Convert Legacy Pause ]</b>",
+        "zh": "<b>[ 批量更改暂停节拍 ]</b>"
     },
     "legacy_pause_desc": {
         "ko": "버튼 기능\n  - ↑: 유턴 타일에 있는 일시정지 비트 수를 1 증가시킵니다.\n  - ↓: 유턴 타일에 있는 일시정지 비트 수를 1 감소시킵니다. (클릭 실수 시 복구용)",

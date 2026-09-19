@@ -32,6 +32,10 @@ namespace QuickChart {
         public string ChangeAngleReplace = "22.5";
         public bool MaintainTimingWithSpeed = false;
         
+        public string PseudoMidspinCount = "2";
+        public string PseudoMidspinStep = "1";
+        public string PseudoMidspinOffset = "1";
+        
         public override void Save(UnityModManager.ModEntry modEntry) {
             Save(this, modEntry);
         }
