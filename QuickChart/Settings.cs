@@ -30,6 +30,7 @@ namespace QuickChart {
         public string ChangeAngleEndTile = "";
         public string ChangeAngleFind = "30";
         public string ChangeAngleReplace = "22.5";
+        public bool MaintainTimingWithSpeed = false;
         
         public override void Save(UnityModManager.ModEntry modEntry) {
             Save(this, modEntry);

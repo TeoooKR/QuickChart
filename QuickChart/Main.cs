@@ -56,6 +56,7 @@ namespace QuickChart {
         public static bool _allowBackwardPaste = true;
         public static bool _disableMovePageShortcuts = true;
         public static bool _autoInsertTwirl = false;
+        private static bool _maintainTimingWithSpeed = false;
         
         public static void Setup(UnityModManager.ModEntry modEntry) {
             Logger = modEntry.Logger;
@@ -86,6 +87,7 @@ namespace QuickChart {
             _allowBackwardPaste = _settings.AllowBackwardPaste;
             _disableMovePageShortcuts = _settings.DisableMovePageShortcuts;
             _autoInsertTwirl = _settings.AutoInsertTwirl;
+            _maintainTimingWithSpeed = _settings.MaintainTimingWithSpeed;
             
             modEntry.OnToggle = OnToggle;
             modEntry.OnGUI = OnGUI;
@@ -302,6 +304,18 @@ namespace QuickChart {
 
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
+                    bool prevMaintainTiming = _maintainTimingWithSpeed;
+                    _maintainTimingWithSpeed = GUILayout.Toggle(_maintainTimingWithSpeed, T("maintain_timing_with_speed"));
+                    if (prevMaintainTiming != _maintainTimingWithSpeed) _settings.MaintainTimingWithSpeed = _maintainTimingWithSpeed;
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(64);
+                    GUILayout.Label("<color=#888888><size=12>" + T("maintain_timing_desc") + "</size></color>");
+                    GUILayout.EndHorizontal();
+
+                    GUILayout.BeginHorizontal();
+                    GUILayout.Space(32);
                     GUI.enabled = ADOBase.isEditingLevel;
                     if (GUILayout.Button(T("execute"), GUILayout.Width(100))) {
                         ExecuteAngleChange();
@@ -434,13 +448,13 @@ namespace QuickChart {
             }
 
             if (_insertColorTrack) {
-                UpdateColorTrack(floorID, totalBeats >= 4);
+                UpdateGemsColorTrack(floorID, totalBeats >= 4);
             }
 
             return true;
         }
 
-        private static void UpdateColorTrack(int floorID, bool shouldBeGems) {
+        private static void UpdateGemsColorTrack(int floorID, bool shouldBeGems) {
             var editor = ADOBase.editor;
             var colorTrackEvents = editor.GetFloorEvents(floorID, LevelEventType.ColorTrack);
 
@@ -800,6 +814,67 @@ namespace QuickChart {
                     editor.RemakePath();
                 }
 
+                if (_maintainTimingWithSpeed && allChangedTiles.Count > 0) {
+                    float delta = replace - find;
+                    Dictionary<int, double> speedMultipliers = new Dictionary<int, double>();
+
+                    var sortedChanged = new List<int>(allChangedTiles);
+                    sortedChanged.Sort();
+
+                    foreach (int i in sortedChanged) {
+                        if (i + 1 >= editor.floors.Count) continue;
+                        if (editor.GetFloorEvents(i + 1, LevelEventType.Twirl).Count == 0) continue;
+
+                        double a2New = GetFloorRelativeAngle(i + 1);
+                        
+                        float s1 = editor.floors[i].speed;
+                        float s2 = editor.floors[i + 1].speed;
+
+                        double a2Target = a2New - delta * (1.0 + (double)s2 / s1);
+
+                        if (a2Target <= 0 || a2New <= 0) continue;
+
+                        double M = a2New / a2Target;
+
+                        if (!speedMultipliers.ContainsKey(i + 1)) speedMultipliers[i + 1] = 1.0;
+                        speedMultipliers[i + 1] *= M;
+
+                        if (i + 2 < editor.floors.Count) {
+                            var nextSpeedEvents = editor.GetFloorEvents(i + 2, LevelEventType.SetSpeed);
+                            bool hasAbsoluteBpm = false;
+                            if (nextSpeedEvents.Count > 0) {
+                                var currentType = nextSpeedEvents[0].GetData()["speedType"];
+                                if (currentType.ToString() == "Bpm" || currentType.ToString() == "0") {
+                                    hasAbsoluteBpm = true;
+                                }
+                            }
+                            
+                            if (!hasAbsoluteBpm) {
+                                if (!speedMultipliers.ContainsKey(i + 2)) speedMultipliers[i + 2] = 1.0;
+                                speedMultipliers[i + 2] *= (1.0 / M);
+                            }
+                        }
+                    }
+
+                    var sortedKeys = new List<int>(speedMultipliers.Keys);
+                    sortedKeys.Sort();
+
+                    foreach (int floorID in sortedKeys) {
+                        double multiplier = speedMultipliers[floorID];
+                        if (Math.Abs(multiplier - 1.0) < 0.0000001) continue;
+                        ApplySpeedMultiplier(editor, floorID, multiplier);
+
+                        if (editor.GetFloorEvents(floorID, LevelEventType.Twirl).Count == 0) {
+                            SetHideTileIcon(editor, floorID, true);
+                            if (floorID + 1 < editor.floors.Count) {
+                                SetHideTileIcon(editor, floorID + 1, false);
+                            }
+                        }
+                    }
+
+                    editor.ApplyEventsToFloors();
+                }
+
                 if (allChangedTiles.Count > 0) {
                     var sortedTiles = new List<int>(allChangedTiles);
                     sortedTiles.Sort();
@@ -807,6 +882,47 @@ namespace QuickChart {
                 } else {
                     _changeAngleResultStr = "<color=#88ff88>" + string.Format(T("tiles_changed"), 0) + "</color>";
                 }
+            }
+        }
+
+        private static void SetHideTileIcon(scnEditor editor, int floorID, bool hideIcon) {
+            var hideEvents = editor.GetFloorEvents(floorID, LevelEventType.Hide);
+            if (hideEvents.Count > 0) {
+                return;
+            } else {
+                AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.Hide });
+                var lastEvent = editor.events[editor.events.Count - 1];
+                var data = lastEvent.GetData();
+                data["hideTileIcon"] = hideIcon;
+                data["hideJudgment"] = false;
+            }
+        }
+
+        private static void ApplySpeedMultiplier(scnEditor editor, int floorID, double multiplier) {
+            var setSpeedEvents = editor.GetFloorEvents(floorID, LevelEventType.SetSpeed);
+            if (setSpeedEvents.Count > 0) {
+                var targetEvent = setSpeedEvents[0];
+                var data = targetEvent.GetData();
+                var currentType = data["speedType"];
+                bool isBpmMode = currentType.ToString() == "Bpm" || currentType.ToString() == "0";
+                if (isBpmMode) {
+                    data["beatsPerMinute"] = (float)(Convert.ToDouble(data["beatsPerMinute"]) * multiplier);
+                } else {
+                    float newMult = (float)(Convert.ToDouble(data["bpmMultiplier"]) * multiplier);
+                    if (Mathf.Approximately(newMult, 1f)) {
+                        editor.RemoveEvents(new List<LevelEvent> { targetEvent });
+                    } else {
+                        data["bpmMultiplier"] = newMult;
+                    }
+                }
+            } else {
+                if (Math.Abs(multiplier - 1.0) < 0.0000001) return;
+                
+                AddEventMethod.Invoke(editor, new object[] { floorID, LevelEventType.SetSpeed });
+                var lastEvent = editor.events[editor.events.Count - 1];
+                var data = lastEvent.GetData();
+                data["speedType"] = SpeedType.Multiplier;
+                data["bpmMultiplier"] = (float)multiplier;
             }
         }
     }

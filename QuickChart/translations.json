@@ -104,6 +104,15 @@
         "en": "Execute",
         "zh": "确定 (执行替换操作)"
     },
+    "maintain_timing_with_speed": {
+        "ko": "변속으로 타이밍 유지",
+        "en": "Maintain timing with speed change",
+        "zh": ""
+    },
+    "maintain_timing_desc": {
+        "ko": "바꾼 각도 다음 타일에 소용돌이가 있을 때, 다음 타일에 변속 보정을 넣어 타이밍이 유지되도록 합니다.\n스윙 기반 30도 동타 채보를 낮은 각도로 변환할 때 유용합니다.\n끄는 것이 일반적입니다.",
+        "en": "Automatically inserts speed changes to maintain the original timing when a twirl is on the next tile after a changed angle.\nUseful when converting 30-degree swing charts to lower angles. It's common to turn it off."
+    },
     "convert_legacy_pause_title": {
         "ko": "<b>레거시 일시정지 최신화</b>",
         "en": "<b>Convert Legacy Pause</b>",
