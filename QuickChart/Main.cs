@@ -502,6 +502,8 @@ namespace QuickChart {
             double tileBeats = GetFloorRelativeAngle(floorID) / 180;
             double totalBeats = tileBeats + duration;
 
+            Logger.Log($"[Pause] floorID={floorID}, angle={ADOBase.editor.levelData.angleData[floorID]}, relativeAngle={GetFloorRelativeAngle(floorID)}, tileBeats={tileBeats}, pauseDuration={duration}, totalBeats={totalBeats}, >=4:{totalBeats >= 4}");
+
             if (_autoSetCountdownTicks) {
                 data["countdownTicks"] = totalBeats >= 4 ? 4 : 0;
             }
@@ -552,10 +554,10 @@ namespace QuickChart {
                 if (selectedEvent == null) {
                     if (delta < 0) return;
                     AddEventMethod.Invoke(editor, new object[] { id, LevelEventType.Pause });
-                    selectedEvent = editor.events[editor.events.Count - 1];
+                    selectedEvent = editor.GetFloorEvents(id, LevelEventType.Pause).LastOrDefault();
                     
                     finalDuration = delta;
-                    selectedEvent.GetData()["duration"] = finalDuration;
+                    if (selectedEvent != null) selectedEvent.GetData()["duration"] = finalDuration;
                     shouldShowPanel = true;
                 } else {
                     var data = selectedEvent.GetData();
