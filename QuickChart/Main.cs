@@ -131,6 +131,14 @@ namespace QuickChart {
             return key;
         }
         
+        public static bool IsAngleDataLevel() {
+            if (!ADOBase.isEditingLevel) return false;
+            var levelData = ADOBase.editor.levelData;
+            if (!string.IsNullOrEmpty(levelData.pathData) && (levelData.angleData == null || levelData.angleData.Count == 0))
+                return false;
+            return true;
+        }
+
         private static void OnGUI(UnityModManager.ModEntry modEntry) {
 
             GUILayout.BeginHorizontal();
@@ -148,10 +156,16 @@ namespace QuickChart {
             GUILayout.FlexibleSpace();
             GUILayout.EndHorizontal();
             
+            bool isAngleData = IsAngleDataLevel();
+            if (!isAngleData) {
+                GUILayout.Label("<color=#ffff88>" + T("pathdata_not_supported") + "</color>");
+            }
+            GUI.enabled = isAngleData;
+
             bool prevAutoPos = _autoInsertPositionTrack;
             _autoInsertPositionTrack = GUILayout.Toggle(_autoInsertPositionTrack, T("auto_insert_position"));
             if (prevAutoPos != _autoInsertPositionTrack) _settings.AutoInsertPositionTrack = _autoInsertPositionTrack;
-                    GUI.enabled = _autoInsertPositionTrack; 
+                    GUI.enabled = isAngleData && _autoInsertPositionTrack; 
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     GUILayout.Label(T("position_track_unit"));
@@ -165,7 +179,7 @@ namespace QuickChart {
                     }
                     GUILayout.FlexibleSpace();
                     GUILayout.EndHorizontal();
-                    GUI.enabled = true;
+                    GUI.enabled = isAngleData;
                     
                     
             bool prevAutoMove = _autoInsertMoveTrack;
@@ -173,7 +187,7 @@ namespace QuickChart {
             if (prevAutoMove != _autoInsertMoveTrack) _settings.AutoInsertMoveTrack = _autoInsertMoveTrack;
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
-                    GUI.enabled = _autoInsertMoveTrack;
+                    GUI.enabled = isAngleData && _autoInsertMoveTrack;
                     GUILayout.Label(T("easing"));
                     GUILayout.EndHorizontal();
                             GUILayout.BeginHorizontal();
@@ -182,7 +196,7 @@ namespace QuickChart {
                             string currentFunc = _easingFunctions[_easeFuncIdx];
                             bool isLinear = currentFunc == "Linear";
                             bool isFlash = currentFunc == "Flash";
-                            GUI.enabled = _autoInsertMoveTrack && !isLinear;
+                            GUI.enabled = isAngleData && _autoInsertMoveTrack && !isLinear;
                             string[] currentModes = isFlash ? _easingModesFlash : _easingModes;
                             if (_easeModeIdx >= currentModes.Length) _easeModeIdx = currentModes.Length - 1;
                             GUILayout.Label(T("mode"));
@@ -191,7 +205,7 @@ namespace QuickChart {
                                 _easeModeIdx = nextModeIdx;
                                 _settings.EaseModeIndex = _easeModeIdx;
                             }
-                            GUI.enabled = _autoInsertMoveTrack;
+                            GUI.enabled = isAngleData && _autoInsertMoveTrack;
                             
                             GUILayout.Space(15);
                             GUILayout.Label(T("function"));
@@ -203,7 +217,7 @@ namespace QuickChart {
                             GUILayout.EndVertical();
                             GUILayout.FlexibleSpace();
                             GUILayout.EndHorizontal();
-                            GUI.enabled = true;
+                            GUI.enabled = isAngleData;
                             
             bool prevSwap = _swapShortcuts;
             _swapShortcuts = GUILayout.Toggle(_swapShortcuts, T("swap_shortcuts"));
@@ -214,7 +228,7 @@ namespace QuickChart {
             string speedShortcutStr = _swapShortcuts ? "(Ctrl+↑/↓, Ctrl+Shift+↑/↓)" : "(Alt+↑/↓, Alt+Shift+↑/↓)";
             _speedShortcutEnabled = GUILayout.Toggle(_speedShortcutEnabled, T("enable_speed_shortcut") + speedShortcutStr);
             if (prevSpeed != _speedShortcutEnabled) _settings.SpeedShortcutEnabled = _speedShortcutEnabled;
-                    GUI.enabled = _speedShortcutEnabled; 
+                    GUI.enabled = isAngleData && _speedShortcutEnabled; 
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     string bpmShortcutStr = _swapShortcuts ? "Ctrl+Shift+↑/↓ " : "Alt+Shift+↑/↓ ";
@@ -230,14 +244,14 @@ namespace QuickChart {
                     }
                     GUILayout.FlexibleSpace();
                     GUILayout.EndHorizontal();
-                    GUI.enabled = true;
+                    GUI.enabled = isAngleData;
             
                     
             bool prevPause = _pauseShortcutEnabled;
             string pauseShortcutStr = _swapShortcuts ? "(Alt+↑/↓)" : "(Ctrl+↑/↓)";
             _pauseShortcutEnabled = GUILayout.Toggle(_pauseShortcutEnabled, T("enable_pause_shortcut") + pauseShortcutStr);
             if (prevPause != _pauseShortcutEnabled) _settings.PauseShortcutEnabled = _pauseShortcutEnabled;
-                    GUI.enabled = _pauseShortcutEnabled;
+                    GUI.enabled = isAngleData && _pauseShortcutEnabled;
                     GUILayout.BeginHorizontal();
                     GUILayout.Space(32);
                     bool prevAdjust = _adjustPositionTrackWithPause;
@@ -258,7 +272,7 @@ namespace QuickChart {
                     _insertColorTrack = GUILayout.Toggle(_insertColorTrack, T("auto_insert_color_track"));
                     if (prevAutoColor != _insertColorTrack) _settings.InsertColorTrack = _insertColorTrack;
                     GUILayout.EndHorizontal();
-                    GUI.enabled = true;
+                    GUI.enabled = isAngleData;
                     
             bool prevAllowBackward = _allowBackwardPaste;
             _allowBackwardPaste = GUILayout.Toggle(_allowBackwardPaste, T("allow_backward_paste"));
@@ -327,14 +341,14 @@ namespace QuickChart {
 
                             GUILayout.BeginHorizontal();
                             GUILayout.Space(48);
-                            GUI.enabled = ADOBase.isEditingLevel;
+                            GUI.enabled = isAngleData && ADOBase.isEditingLevel;
                             if (GUILayout.Button(T("execute"), GUILayout.Width(100))) {
                                 ExecuteAngleChange();
                             }
                             if (!string.IsNullOrEmpty(_changeAngleResultStr)) {
                                 GUILayout.Label(_changeAngleResultStr);
                             }
-                            GUI.enabled = true;
+                            GUI.enabled = isAngleData;
                             GUILayout.FlexibleSpace();
                             GUILayout.EndHorizontal();
             
@@ -358,14 +372,14 @@ namespace QuickChart {
 
                             GUILayout.BeginHorizontal();
                             GUILayout.Space(48);
-                            GUI.enabled = ADOBase.isEditingLevel;
+                            GUI.enabled = isAngleData && ADOBase.isEditingLevel;
                             if (GUILayout.Button(T("execute_pseudo_midspin"), GUILayout.Width(150))) {
                                 ExecutePseudoMidspin();
                             }
                             if (!string.IsNullOrEmpty(_pseudoMidspinResultStr)) {
                                 GUILayout.Label(_pseudoMidspinResultStr);
                             }
-                            GUI.enabled = true;
+                            GUI.enabled = isAngleData;
                             GUILayout.FlexibleSpace();
                             GUILayout.EndHorizontal();
                             
@@ -402,6 +416,8 @@ namespace QuickChart {
                         GUILayout.EndHorizontal();
                     }
                     GUILayout.EndHorizontal(); 
+
+            GUI.enabled = true;
         }
         
         public static void SetMovePageShortcuts(EditorKeybindManager manager, bool register) {
@@ -424,6 +440,7 @@ namespace QuickChart {
         
         public static void OnUpdate(scnEditor editor) {
             if(!ADOBase.controller.paused) return;
+            if (!IsAngleDataLevel()) return;
             float deltaTime = Time.unscaledDeltaTime;
 
             bool pauseCtrl = !_swapShortcuts;

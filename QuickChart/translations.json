@@ -1,4 +1,8 @@
 {
+    "pathdata_not_supported": {
+        "ko": "이 레벨은 pathData 형식이므로 아래 기능이 비활성화됩니다.",
+        "en": "This level uses pathData format. Features below are disabled."
+    },
     "auto_insert_position": {
         "ko": "일시정지 설치 시 길 위치 자동 설치",
         "en": "Auto-insert Position Track on Pause",

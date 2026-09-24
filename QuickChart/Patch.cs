@@ -53,6 +53,7 @@ namespace QuickChart {
         [HarmonyPatch(typeof(scnEditor), "InsertFloatFloor")]
         public static class InsertFloatFloorPatch {
             public static void Postfix() {
+                if (!Main.IsAngleDataLevel()) return;
                 var editor = scnEditor.instance;
                 if (editor.selectedFloors.Count == 0) return;
 
@@ -112,6 +113,7 @@ namespace QuickChart {
         [HarmonyPatch(typeof(scnEditor), "AddEvent")]
         public static class AddEventPatch {
             public static void Postfix(int floorID, LevelEventType eventType) {
+                if (!Main.IsAngleDataLevel()) return;
                 if (eventType == LevelEventType.Pause) {
                     bool changed = false;
 
@@ -130,6 +132,7 @@ namespace QuickChart {
         [HarmonyPatch(typeof(scnEditor), "PasteFloors")]
         public static class PasteFloorPatch {
             public static bool Prefix(scnEditor __instance, bool alsoPasteDecorations, ref bool ___refreshBgSprites, ref bool ___refreshDecSprites) {
+                if (!Main.IsAngleDataLevel()) return true;
                 if (Main._allowBackwardPaste && (bool) FloorPointsBackwardsMethod.Invoke(__instance, new object[] {
                         ((scnEditor.FloorData) __instance.clipboard[0]).floatDirection
                     })) {
