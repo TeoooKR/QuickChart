@@ -63,7 +63,9 @@ legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacy
 
 [Jongyeol](https://github.com/Jongye0l)님이 버그 수정 및 성능 최적화로 도움 주셨습니다. 감사합니다!
 
-[TulltakMod](https://github.com/wjdgustn/TulttakMod), [ADOFAI Tweaks](https://github.com/PizzaLovers007/AdofaiTweaks), [SmartEditor](https://github.com/Jongye0l/SmartEditor)
+[TulltakMod](https://github.com/wjdgustn/TulttakMod), [ADOFAI Tweaks](https://github.com/PizzaLovers007/AdofaiTweaks), [SmartEditor](https://github.com/Jongye0l/SmartEditor)등 코드를 참고하였습니다
+
+[AI 일부 사용] 반복 작업과 일부 코드에 생성형 AI를 사용하였습니다.
 
 ## 문의
 
