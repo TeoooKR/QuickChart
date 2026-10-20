@@ -65,7 +65,7 @@ legacyPause를 켜면 굳이 바꿀 필요가 없지만, 가끔 게임이 legacy
 
 [TulltakMod](https://github.com/wjdgustn/TulttakMod), [ADOFAI Tweaks](https://github.com/PizzaLovers007/AdofaiTweaks), [SmartEditor](https://github.com/Jongye0l/SmartEditor)등 코드를 참고하였습니다
 
-[AI 일부 사용] 반복 작업과 일부 코드에 생성형 AI를 사용하였습니다.
+[AI 일부 사용] 일부 코드에 생성형 AI가 사용되었습니다.
 
 ## 문의
 
